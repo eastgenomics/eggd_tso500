@@ -1,0 +1,3 @@
+#!/bin/bash
+
+echo '{"error": {"type": "AppError", "message": "Error while '"$@"'; please refer to the job log for more details."}}' > ~/job_error.json

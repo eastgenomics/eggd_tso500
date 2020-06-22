@@ -1,0 +1,82 @@
+{
+  "name": "TSO500_v1.0",
+  "title": "TSO500_v1.0",
+  "summary": "v1.0 - TSO500",
+  "tags": [
+  ],
+  "properties": {
+    "github release": "v1.0"
+  },
+  "dxapi": "1.0.0",
+  "inputSpec": [
+    {
+      "name": "TSO500_ruo",
+      "label": "TSO500_ruo",
+      "help": "zip file containing of analysis tool",
+      "class": "file",
+      "patterns": ["*.zip"],
+      "optional": false
+    },
+    {
+      "name": "run_folder",
+      "label": "run_folder",
+      "help": "run folder to be analysed",
+      "class": "file",
+      "patterns": ["*.tar.gz"],
+      "optional": false
+    },
+    {
+      "name": "samplesheet",
+      "label": "samplesheet",
+      "help": "The Samplesheet used for demultiplexing",
+      "class": "file",
+      "patterns": ["*.csv"]
+    },
+    {
+      "name": "analysis_options",
+      "label": "analysis_options",
+      "help": "An optional string passed to analysis script",
+      "class": "string",
+      "optional": true
+    }
+  ],
+  "outputSpec": [
+    {
+      "name": "analysis_folder",
+      "label": "analysis_folder",
+      "help": "All files within the analysis folder.",
+      "class": "array:file"
+    },
+    {
+      "name": "logs",
+      "label": "logs",
+      "help": "stdout logs from RUO.",
+      "class": "array:file"
+    }
+  ],
+  "runSpec": {
+    "execDepends": [
+    ],
+    "distribution" : "Ubuntu",
+    "release":"16.04",
+    "file": "src/code.sh",
+    "interpreter": "bash",
+    "assetDepends": [
+    ]
+  },
+  "access": {
+    "allProjects":"UPLOAD",
+    "network": [
+      "*"
+    ]
+  },
+  "regionalOptions": {
+    "aws:eu-central-1": {
+      "systemRequirements": {
+        "main": {
+          "instanceType": "mem1_ssd1_x32"
+        }
+      }
+    }
+  }
+}
