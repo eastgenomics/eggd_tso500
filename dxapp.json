@@ -1,6 +1,6 @@
 {
-  "name": "TSO500_v1.0",
-  "title": "TSO500_v1.0",
+  "name": "tso500_v1.0_dev",
+  "title": "tso500_v1.0_dev",
   "summary": "v1.0 - TSO500",
   "tags": [
   ],
@@ -21,9 +21,17 @@
       "name": "run_folder",
       "label": "run_folder",
       "help": "run folder to be analysed",
-      "class": "file",
-      "patterns": ["*.tar.gz"],
+      "class": "array:file",
+      "patterns": ["*.tar.gz","*.fastq.gz"],
       "optional": false
+    },
+    {
+      "name": "isFastQ",
+      "label": "isFastQ",
+      "help": "flag to run from fastq input",
+      "class": "boolean",
+      "optional": true,
+      "default": false
     },
     {
       "name": "samplesheet",
