@@ -38,6 +38,7 @@
       "label": "samplesheet",
       "help": "The Samplesheet used for demultiplexing",
       "class": "file",
+      "optional": false,
       "patterns": ["*.csv"]
     },
     {

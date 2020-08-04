@@ -4,7 +4,7 @@
 set -x +e
 mark-section "download inputs"
 
-mkdir -p runfolder/SF_positive_Control-RNA TSO500_ruo out/logs/logs out/analysis_folder
+mkdir -p runfolder TSO500_ruo out/logs/logs out/analysis_folder
 
 # download all inputs
 dx-download-all-inputs --parallel --except run_folder
