@@ -1,11 +1,11 @@
 {
-  "name": "tso500_v1.0_dev",
-  "title": "tso500_v1.0_dev",
+  "name": "tso500_v1.1_dev",
+  "title": "tso500_v1.1_dev",
   "summary": "v1.0 - TSO500",
   "tags": [
   ],
   "properties": {
-    "github release": "v1.0"
+    "github release": "v1.1"
   },
   "dxapi": "1.0.0",
   "inputSpec": [
@@ -29,6 +29,14 @@
       "name": "isFastQ",
       "label": "isFastQ",
       "help": "flag to run from fastq input",
+      "class": "boolean",
+      "optional": true,
+      "default": false
+    },
+    {
+      "name": "isFastQ",
+      "label": "isFastQ",
+      "help": "flag to demultiplex only",
       "class": "boolean",
       "optional": true,
       "default": false

@@ -22,7 +22,7 @@ if $isFastQ
 then 
     for i in ${!run_folder[@]}
         do 
-            dx download "${run_folder[$i]}" -o runfolder/SF_positive_Control-RNA
+            dx download "${run_folder[$i]}" -o runfolder/
         done
     sudo bash TSO500_ruo/TSO500_RUO_LocalApp/TruSight_Oncology_500_RUO.sh --analysisFolder /home/dnanexus/out/analysis_folder/analysis_folder --fastqFolder /home/dnanexus/runfolder --sampleSheet $samplesheet_path --resourcesFolder /home/dnanexus/TSO500_ruo/TSO500_RUO_LocalApp/resources $analysis_options 2>&1 | tee /home/dnanexus/out/logs/logs/RUO_stdout.txt
 else
