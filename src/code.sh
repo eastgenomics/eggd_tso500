@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Output each line as it is executed (-x) and don't stop if any non zero exit codes are seen (+e)
-set -x +e
+# Output each line as it is executed (-x) and stop if any non zero exit codes are seen (-e)
+set -euxo pipefail
+
 mark-section "download inputs"
 
 mkdir -p runfolder TSO500_ruo out/logs/logs out/analysis_folder
@@ -9,6 +10,7 @@ mkdir -p runfolder TSO500_ruo out/logs/logs out/analysis_folder
 # download all inputs
 dx-download-all-inputs --parallel --except run_folder
 
+#Unload and prep docker image
 unzip $TSO500_ruo_path -d TSO500_ruo
 rm $TSO500_ruo_path
 # change the owner of the app

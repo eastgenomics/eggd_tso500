@@ -18,9 +18,9 @@
       "optional": false
     },
     {
-      "name": "run_folder",
-      "label": "run_folder",
-      "help": "run folder to be analysed",
+      "name": "input_files",
+      "label": "input fies",
+      "help": "Zipped runfolder or array of fastqs",
       "class": "array:file",
       "patterns": ["*.tar.gz","*.fastq.gz"],
       "optional": false
@@ -34,8 +34,8 @@
       "default": false
     },
     {
-      "name": "isFastQ",
-      "label": "isFastQ",
+      "name": "DemultiplexOnly",
+      "label": "Demultiplex Only",
       "help": "flag to demultiplex only",
       "class": "boolean",
       "optional": true,
