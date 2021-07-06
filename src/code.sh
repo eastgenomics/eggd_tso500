@@ -20,21 +20,44 @@ mv TSO500_ruo/TSO500_RUO_LocalApp/trusight-oncology-500-ruo-dockerimage-ruo-*.ta
 # load docker image
 sudo docker load --input /home/dnanexus/trusight-oncology-500-ruo-dockerimage-ruo-*.tar
 
+options=()
+options+=(${analysis_options})
+
+
 if $isFastQ
-then 
+then
+    # Download all fastq files from the array
     for i in ${!run_folder[@]}
         do 
             dx download "${run_folder[$i]}" -o runfolder/
         done
-    sudo bash TSO500_ruo/TSO500_RUO_LocalApp/TruSight_Oncology_500_RUO.sh --analysisFolder /home/dnanexus/out/analysis_folder/analysis_folder --fastqFolder /home/dnanexus/runfolder --sampleSheet $samplesheet_path --resourcesFolder /home/dnanexus/TSO500_ruo/TSO500_RUO_LocalApp/resources $analysis_options 2>&1 | tee /home/dnanexus/out/logs/logs/RUO_stdout.txt
+
+    # run the shell script, specifying the analysis folder, fastq folder, samplesheet, resourcesFolder and any analysis options string given as an input
+    # pipe stderr into stdout and write this to a file and to screen - this allows a record of the logs to be saved and visible on screen if it goes wrong
+    sudo bash TSO500_ruo/TSO500_RUO_LocalApp/TruSight_Oncology_500_RUO.sh \
+        --analysisFolder /home/dnanexus/out/analysis_folder/analysis_folder \
+        --fastqFolder /home/dnanexus/runfolder \
+        --sampleSheet $samplesheet_path \
+        --resourcesFolder /home/dnanexus/TSO500_ruo/TSO500_RUO_LocalApp/resources \
+        ${options[@]} 2>&1 | tee /home/dnanexus/out/logs/logs/RUO_stdout.txt
 else
+
     # download the runfolder input, decompress and save in directory 'runfolder'
     dx cat "$run_folder" | tar zxf - -C runfolder
+
+    if ["$DemultiplexOnly"];
+    then
+        options+=("--demultiplexOnly")
+    fi
     # run the shell script, specifying the analysis folder, runfolder, samplesheet, resourcesFolder and any analysis options string given as an input
     # pipe stderr into stdout and write this to a file and to screen - this allows a record of the logs to be saved and visible on screen if it goes wrong
-    sudo bash TSO500_ruo/TSO500_RUO_LocalApp/TruSight_Oncology_500_RUO.sh --analysisFolder /home/dnanexus/out/analysis_folder/analysis_folder --runFolder /home/dnanexus/runfolder/* --sampleSheet $samplesheet_path --resourcesFolder /home/dnanexus/TSO500_ruo/TSO500_RUO_LocalApp/resources $analysis_options 2>&1 | tee /home/dnanexus/out/logs/logs/RUO_stdout.txt
+    sudo bash TSO500_ruo/TSO500_RUO_LocalApp/TruSight_Oncology_500_RUO.sh \
+    --analysisFolder /home/dnanexus/out/analysis_folder/analysis_folder \
+    --runFolder /home/dnanexus/runfolder/* \
+    --sampleSheet $samplesheet_path \
+    --resourcesFolder /home/dnanexus/TSO500_ruo/TSO500_RUO_LocalApp/resources \
+    ${options[@]} 2>&1 | tee /home/dnanexus/out/logs/logs/RUO_stdout.txt
 fi
 
 # upload all outputs
 dx-upload-all-outputs --parallel
-

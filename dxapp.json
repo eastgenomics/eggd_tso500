@@ -28,7 +28,7 @@
     {
       "name": "isFastQ",
       "label": "isFastQ",
-      "help": "flag to run from fastq input",
+      "help": "(Optional) flag to run from fastq input",
       "class": "boolean",
       "optional": true,
       "default": false
@@ -36,7 +36,7 @@
     {
       "name": "DemultiplexOnly",
       "label": "Demultiplex Only",
-      "help": "flag to demultiplex only",
+      "help": "(Optional) flag to demultiplex a runfolder and upload the fastq files",
       "class": "boolean",
       "optional": true,
       "default": false
