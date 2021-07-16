@@ -11,7 +11,7 @@ mkdir -p runfolder TSO500_ruo out/logs/logs out/analysis_folder
 dx-download-all-inputs --parallel --except run_folder
 
 #Unload and prep docker image
-unzip $TSO500_ruo_path -d TSO500_ruo
+unzip $TSO500_ruo_path -d TSO500_ruo 
 rm $TSO500_ruo_path
 # change the owner of the app
 chmod 777 TSO500_ruo/TSO500_RUO_LocalApp/
@@ -21,13 +21,13 @@ mv TSO500_ruo/TSO500_RUO_LocalApp/trusight-oncology-500-ruo-dockerimage-ruo-*.ta
 sudo docker load --input /home/dnanexus/trusight-oncology-500-ruo-dockerimage-ruo-*.tar
 
 options=()
-options+=(${analysis_options})
+options+=( "${analysis_options}" )
 
 
-if $isFastQ
+if [ "$isFastQ" ]
 then
     # Download all fastq files from the array
-    for i in ${!run_folder[@]}
+    for i in "${!run_folder[@]}"
         do 
             dx download "${run_folder[$i]}" -o runfolder/
         done
@@ -37,15 +37,15 @@ then
     sudo bash TSO500_ruo/TSO500_RUO_LocalApp/TruSight_Oncology_500_RUO.sh \
         --analysisFolder /home/dnanexus/out/analysis_folder/analysis_folder \
         --fastqFolder /home/dnanexus/runfolder \
-        --sampleSheet $samplesheet_path \
+        --sampleSheet "$samplesheet_path" \
         --resourcesFolder /home/dnanexus/TSO500_ruo/TSO500_RUO_LocalApp/resources \
-        ${options[@]} 2>&1 | tee /home/dnanexus/out/logs/logs/RUO_stdout.txt
+        "${options[@]}" 2>&1 | tee /home/dnanexus/out/logs/logs/RUO_stdout.txt
 else
 
     # download the runfolder input, decompress and save in directory 'runfolder'
     dx cat "$run_folder" | tar zxf - -C runfolder
 
-    if ["$DemultiplexOnly"];
+    if [ "$DemultiplexOnly" ]
     then
         options+=("--demultiplexOnly")
     fi
@@ -54,9 +54,9 @@ else
     sudo bash TSO500_ruo/TSO500_RUO_LocalApp/TruSight_Oncology_500_RUO.sh \
     --analysisFolder /home/dnanexus/out/analysis_folder/analysis_folder \
     --runFolder /home/dnanexus/runfolder/* \
-    --sampleSheet $samplesheet_path \
+    --sampleSheet "$samplesheet_path" \
     --resourcesFolder /home/dnanexus/TSO500_ruo/TSO500_RUO_LocalApp/resources \
-    ${options[@]} 2>&1 | tee /home/dnanexus/out/logs/logs/RUO_stdout.txt
+    "${options[@]}" 2>&1 | tee /home/dnanexus/out/logs/logs/RUO_stdout.txt
 fi
 
 # upload all outputs
