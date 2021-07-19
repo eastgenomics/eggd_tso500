@@ -46,7 +46,7 @@
       "label": "samplesheet",
       "help": "The Samplesheet used for demultiplexing",
       "class": "file",
-      "optional": false,
+      "optional": true,
       "patterns": ["*.csv"]
     },
     {
