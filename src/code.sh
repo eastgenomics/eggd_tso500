@@ -24,12 +24,29 @@ options=()
 options+=( "${analysis_options}" )
 
 
-if [ "$isFastQ" = true]; 
+if [ "$isFastQ" = true ]; 
 then
     # Download all fastq files from the array
     for i in "${!input_files[@]}"
         do 
             dx download "${input_files[$i]}" -o runfolder/
+        done
+    
+    cd runfolder
+    # The app requires the fastq files to be present in individual sample folders
+    for fastq_file in *fastq.gz; 
+        do 
+        if [[ -e "$fastq_file" ]]
+        then
+            # FastQ files expected  in standard naming format i.e. SampleID_S6_L002_R2_001.fastq.gz
+            # Substitution below transforms SampleID_S6_L002_R2_001.fastq.gz into SampleID
+            samplename=$(echo $fastq_file  | sed 's/_S[0-9]*_L[0-9]*_R[0-9]*_001.fastq.gz//'); 
+            sample_dir="/home/dnanexus/runfolder/${samplename}"
+            mkdir -p "$sample_dir"
+            mv "$fastq_file"  "$sample_dir"
+        else
+            echo "No FastQ files found, please check your inputs. :)" && exit 1;
+        fi
         done
 
     # run the shell script, specifying the analysis folder, fastq folder, samplesheet, resourcesFolder and any analysis options string given as an input
