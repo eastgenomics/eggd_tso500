@@ -1,11 +1,11 @@
 {
-  "name": "tso500_v1.1_dev",
-  "title": "tso500_v1.1_dev",
-  "summary": "v1.0 - TSO500",
+  "name": "tso500_v1.2",
+  "title": "tso500_v1.2",
+  "summary": "v1.2 - TSO500",
   "tags": [
   ],
   "properties": {
-    "github release": "v1.1"
+    "github release": "v1.2"
   },
   "dxapi": "1.0.0",
   "inputSpec": [
@@ -26,6 +26,14 @@
       "optional": false
     },
     {
+      "name": "isNovaSeq",
+      "label": "isNovaSeq",
+      "help": "(Optional) flag to specify NovaSeq data. default= true",
+      "class": "boolean",
+      "optional": true,
+      "default": true
+    },
+    {
       "name": "isFastQ",
       "label": "isFastQ",
       "help": "(Optional) flag to run from fastq input",
@@ -34,8 +42,8 @@
       "default": false
     },
     {
-      "name": "DemultiplexOnly",
-      "label": "Demultiplex Only",
+      "name": "demultiplexOnly",
+      "label": "demultiplex Only",
       "help": "(Optional) flag to demultiplex a runfolder and upload the fastq files",
       "class": "boolean",
       "optional": true,
@@ -44,7 +52,7 @@
     {
       "name": "samplesheet",
       "label": "samplesheet",
-      "help": "The Samplesheet used for demultiplexing",
+      "help": "The SampleSheet used for demultiplexing",
       "class": "file",
       "optional": true,
       "patterns": ["*.csv"]

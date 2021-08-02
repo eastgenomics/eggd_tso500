@@ -21,10 +21,16 @@ mv TSO500_ruo/TSO500_RUO_LocalApp/trusight-oncology-500-ruo-dockerimage-ruo-*.ta
 sudo docker load --input /home/dnanexus/trusight-oncology-500-ruo-dockerimage-ruo-*.tar
 
 options=()
-options+=( "${analysis_options}" )
 
+if [ "$isFastQ" = true ];
 
-if [ "$isFastQ" = true ]; 
+options+=( " --fastqFolder /home/dnanexus/runfolder" )
+
+    if [ ! "$samplesheet" ]
+    then 
+        dx-jobutil-report-error "Please provide a SampleSheet for analysis. :)"
+    fi
+
 then
     # Download all fastq files from the array
     for i in "${!input_files[@]}"
@@ -45,63 +51,47 @@ then
             mkdir -p "$sample_dir"
             mv "$fastq_file"  "$sample_dir"
         else
-            echo "No FastQ files found, please check your inputs. :)" && exit 1;
+            dx-jobutil-report-error "No FastQ files found, please check your inputs. :)"
         fi
         done
 
-    # run the shell script, specifying the analysis folder, fastq folder, samplesheet, resourcesFolder and any analysis options string given as an input
-    # pipe stderr into stdout and write this to a file and to screen - this allows a record of the logs to be saved and visible on screen if it goes wrong
-    sudo bash TSO500_ruo/TSO500_RUO_LocalApp/TruSight_Oncology_500_RUO.sh \
-        --analysisFolder /home/dnanexus/out/analysis_folder/analysis_folder \
-        --fastqFolder /home/dnanexus/runfolder \
-        --sampleSheet "$samplesheet_path" \
-        --resourcesFolder /home/dnanexus/TSO500_ruo/TSO500_RUO_LocalApp/resources \
-        "${options[@]}" 2>&1 | tee /home/dnanexus/out/logs/logs/RUO_stdout.txt
+    cd /home/dnanexus
+
 else
-
+    options+=( "--runFolder /home/dnanexus/runfolder/" )
     # download the runfolder input, decompress and save in directory 'runfolder'
-    #dx cat "$input_files" | tar zxf - -C runfolder
-
-    echo "Step 1: download input tars and unpack them"
-  
-
-    for i in ${!input_files_name[@]}; do
+    for i in "${!input_files_name[@]}" 
+    do
         # check format and decompress
         name="${input_files_name[${i}]}"
 
         if [[ "${name}" == *.tar.gz ]] || [[ "${name}" == *.tgz ]]; then
-        dx cat "${input_files[${i}]}" | tar zxf - --no-same-owner -C /home/dnanexus/runfolder
-
-        elif [ "${name}" == *.zip ]; then
-        dx download "${input_files[$i]}" -o "${name}"
-        unzip "${name}"
-
-        elif [ "${name}" == *.rar ]; then
-        dx download "${input_files[${i}]}" -o "${name}"
-        unrar x "${name}"
+            dx cat "${input_files[${i}]}" | tar zxf - --no-same-owner -C /home/dnanexus/runfolder
 
         else
-        dx-jobutil-report-error "ERROR: The input was not a .rar, .zip, .tar.gz or .tgz"
+            dx-jobutil-report-error "ERROR: The input was not a .tar.gz or .tgz"
 
         fi
     done
 
-    if [ "$DemultiplexOnly" = true ];
-    then
-        options+=("--demultiplexOnly")
-    fi
-    # run the shell script, specifying the analysis folder, runfolder, samplesheet, resourcesFolder and any analysis options string given as an input
-    # pipe stderr into stdout and write this to a file and to screen - this allows a record of the logs to be saved and visible on screen if it goes wrong
+    if [ "$demultiplexOnly" = true ]; then options+=("--demultiplexOnly"); fi  
+
+fi
+
+if [ "$isNovaSeq" = true ]; then options+=("--isNovaSeq"); fi
+if [ "$samplesheet" ];then options+=("--sampleSheet $samplesheet_path");fi
+
+# Adds additional non-specified optional arguments to the command
+options+=( "${analysis_options}" )
+
+# run the shell script, specifying the analysis folder, runfolder, samplesheet, resourcesFolder and any analysis options string given as an input
+# pipe stderr into stdout and write this to a file and to screen - this allows a record of the logs to be saved and visible on screen if it goes wrong
     
     sudo bash TSO500_ruo/TSO500_RUO_LocalApp/TruSight_Oncology_500_RUO.sh \
     --analysisFolder /home/dnanexus/out/analysis_folder/analysis_folder \
-    --runFolder /home/dnanexus/runfolder/ \
-    --sampleSheet "$samplesheet_path" \
     --resourcesFolder /home/dnanexus/TSO500_ruo/TSO500_RUO_LocalApp/resources \
     "${options[@]}" 2>&1 | tee /home/dnanexus/out/logs/logs/RUO_stdout.txt
-    
 
-fi
 
 # upload all outputs
 dx-upload-all-outputs --parallel
