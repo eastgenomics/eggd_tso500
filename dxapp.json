@@ -12,14 +12,21 @@
     {
       "name": "TSO500_ruo",
       "label": "TSO500_ruo",
-      "help": "zip file containing of analysis tool",
+      "help": "Zip file containing of analysis asset",
       "class": "file",
       "patterns": ["*.zip"],
+      "suggestions": [
+        {
+          "name": "TSO500 Local App v2.2 Asset Bundle",
+          "value": 
+          {"$dnanexus_link": {"project": "project-Fkb6Gkj433GVVvj73J7x8KbV","id": "file-Fz4X61Q44Bv44FyfJX1jJPj6"}}
+        }
+      ],
       "optional": false
     },
     {
       "name": "input_files",
-      "label": "input fies",
+      "label": "input files",
       "help": "Zipped runfolder or array of fastqs",
       "class": "array:file",
       "patterns": ["*.tar.gz","*.fastq.gz"],

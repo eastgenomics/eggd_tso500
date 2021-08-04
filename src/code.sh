@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Output each line as it is executed (-x) and stop if any non zero exit codes are seen (-e)
-set -euxo pipefail
+set -exo pipefail
 
 mark-section "download inputs"
 
@@ -20,18 +20,19 @@ mv TSO500_ruo/TSO500_RUO_LocalApp/trusight-oncology-500-ruo-dockerimage-ruo-*.ta
 # load docker image
 sudo docker load --input /home/dnanexus/trusight-oncology-500-ruo-dockerimage-ruo-*.tar
 
-options=()
+options=""
+
+if [ "$samplesheet" ]; then options+=" --sampleSheet $samplesheet_path"; fi
 
 if [ "$isFastQ" = true ];
-
-options+=( " --fastqFolder /home/dnanexus/runfolder" )
+then
+    options+=" --fastqFolder /home/dnanexus/runfolder"
 
     if [ ! "$samplesheet" ]
     then 
-        dx-jobutil-report-error "Please provide a SampleSheet for analysis. :)"
+        dx-jobutil-report-error "Please provide a SampleSheet for analysis. :)" 
+        exit 1
     fi
-
-then
     # Download all fastq files from the array
     for i in "${!input_files[@]}"
         do 
@@ -52,13 +53,14 @@ then
             mv "$fastq_file"  "$sample_dir"
         else
             dx-jobutil-report-error "No FastQ files found, please check your inputs. :)"
+            exit 1
         fi
         done
 
     cd /home/dnanexus
 
 else
-    options+=( "--runFolder /home/dnanexus/runfolder/" )
+    options+=" --runFolder /home/dnanexus/runfolder/" 
     # download the runfolder input, decompress and save in directory 'runfolder'
     for i in "${!input_files_name[@]}" 
     do
@@ -70,27 +72,28 @@ else
 
         else
             dx-jobutil-report-error "ERROR: The input was not a .tar.gz or .tgz"
+            exit 1
 
         fi
     done
 
-    if [ "$demultiplexOnly" = true ]; then options+=("--demultiplexOnly"); fi  
+    if [ "$demultiplexOnly" = true ]; then options+=" --demultiplexOnly"; fi  
 
 fi
 
-if [ "$isNovaSeq" = true ]; then options+=("--isNovaSeq"); fi
-if [ "$samplesheet" ];then options+=("--sampleSheet $samplesheet_path");fi
-
 # Adds additional non-specified optional arguments to the command
-options+=( "${analysis_options}" )
+if [ "$analysis_options" ]; then options+=" ${analysis_options}"; fi 
+if [ "$isNovaSeq" = true ]; then options+=" --isNovaSeq"; fi
 
 # run the shell script, specifying the analysis folder, runfolder, samplesheet, resourcesFolder and any analysis options string given as an input
 # pipe stderr into stdout and write this to a file and to screen - this allows a record of the logs to be saved and visible on screen if it goes wrong
-    
-    sudo bash TSO500_ruo/TSO500_RUO_LocalApp/TruSight_Oncology_500_RUO.sh \
-    --analysisFolder /home/dnanexus/out/analysis_folder/analysis_folder \
-    --resourcesFolder /home/dnanexus/TSO500_ruo/TSO500_RUO_LocalApp/resources \
-    "${options[@]}" 2>&1 | tee /home/dnanexus/out/logs/logs/RUO_stdout.txt
+
+echo sudo bash TSO500_ruo/TSO500_RUO_LocalApp/TruSight_Oncology_500_RUO.sh --analysisFolder /home/dnanexus/out/analysis_folder/analysis_folder --resourcesFolder /home/dnanexus/TSO500_ruo/TSO500_RUO_LocalApp/resources "${options[@]}"
+
+sudo bash TSO500_ruo/TSO500_RUO_LocalApp/TruSight_Oncology_500_RUO.sh \
+--analysisFolder /home/dnanexus/out/analysis_folder/analysis_folder \
+--resourcesFolder /home/dnanexus/TSO500_ruo/TSO500_RUO_LocalApp/resources \
+${options} 2>&1 | tee /home/dnanexus/out/logs/logs/RUO_stdout.txt
 
 
 # upload all outputs
