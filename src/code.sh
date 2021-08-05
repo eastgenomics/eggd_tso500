@@ -111,7 +111,7 @@ sudo bash TSO500_ruo/TSO500_RUO_LocalApp/TruSight_Oncology_500_RUO.sh \
 --resourcesFolder /home/dnanexus/TSO500_ruo/TSO500_RUO_LocalApp/resources \
 ${options} 2>&1 | tee /home/dnanexus/out/logs/logs/RUO_stdout.txt
 
-if less RUO_stdout.txt | grep WorkflowSucceededState ; 
+if less /home/dnanexus/out/logs/logs/RUO_stdout.txt | grep WorkflowSucceededState ; 
 then 
     echo "LocalApp Completed Successfully";
 else 
