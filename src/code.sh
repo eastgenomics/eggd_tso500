@@ -39,9 +39,8 @@ then
     cd runfolder
     # The app requires the fastq files to be present in individual sample folders
     for fastq_file in *fastq.gz; 
-        do 
-        if [[ -e "$fastq_file" ]]
-        then
+    do 
+        if [[ -e "$fastq_file" ]];then
             # FastQ files expected  in standard naming format i.e. SampleID_S6_L002_R2_001.fastq.gz
             # Substitution below transforms SampleID_S6_L002_R2_001.fastq.gz into SampleID
             samplename=$(echo $fastq_file  | sed 's/_S[0-9]*_L[0-9]*_R[0-9]*_001.fastq.gz//'); 
@@ -57,7 +56,7 @@ then
     cd /home/dnanexus
 
 else
-    # If the analysis input is not FastQs expect tar archive(s) of bcl files
+    # If the analysis input is not FASTQs expect tar archive(s) of bcl files
     options+=" --runFolder /home/dnanexus/runfolder/" 
 
     # download the runfolder input, decompress and save in directory 'runfolder'
@@ -69,11 +68,9 @@ else
 
         if [[ "${name}" == *.tar.gz ]] || [[ "${name}" == *.tgz ]]; then
             dx cat "${input_files[${i}]}" | tar zxf - --no-same-owner -C /home/dnanexus/runfolder
-
         else
             dx-jobutil-report-error "ERROR: The input was not a .tar.gz or .tgz"
             exit 1
-
         fi
     done
 
