@@ -10,6 +10,7 @@ Runs the Illumina TSO500 local analysis app.
 * isFastQ - flag to allow the app to start without demultiplexing (Must be used with a SampleSheet input)
 * demultiplexOnly - Flag to only demultiplex the runfolder (cannot be used in conjunction with --isFastQ)
 * analysis_options -  a string which can be passed to the ruo command line
+* isNovaSeq (default=true)-  tells the app to expect NovaSeq data, turn off if adding NextSeq inputs
 
 ## How does this app work?
 * Downloads and unzips/untars the TSO500 local analysis app and runfolder
