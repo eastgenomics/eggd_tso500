@@ -1,7 +1,7 @@
 {
   "name": "tso500_v1.2",
   "title": "tso500_v1.2",
-  "summary": "v1.2 - TSO500",
+  "summary": "v1.2 - TSO500 Local App",
   "tags": [
   ],
   "properties": {
@@ -20,6 +20,10 @@
           "name": "TSO500 Local App v2.2 Asset Bundle",
           "value": 
           {"$dnanexus_link": {"project": "project-Fkb6Gkj433GVVvj73J7x8KbV","id": "file-Fz4X61Q44Bv44FyfJX1jJPj6"}}
+        },
+        {
+          "project": "project-Fkb6Gkj433GVVvj73J7x8KbV",
+          "path": "/assets/tso500_localApp/v2.2/"
         }
       ],
       "optional": false
@@ -82,7 +86,7 @@
     {
       "name": "logs",
       "label": "logs",
-      "help": "stdout logs from RUO.",
+      "help": "stdout logs created during analysis",
       "class": "array:file"
     }
   ],
