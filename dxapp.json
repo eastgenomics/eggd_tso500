@@ -1,0 +1,118 @@
+{
+  "name": "tso500_v1.2",
+  "title": "tso500_v1.2",
+  "summary": "v1.2 - TSO500 Local App",
+  "tags": [
+  ],
+  "properties": {
+    "github release": "v1.2"
+  },
+  "dxapi": "1.0.0",
+  "inputSpec": [
+    {
+      "name": "TSO500_ruo",
+      "label": "TSO500_ruo",
+      "help": "Zip file containing of analysis asset",
+      "class": "file",
+      "patterns": ["*.zip"],
+      "suggestions": [
+        {
+          "name": "TSO500 Local App v2.2 Asset Bundle",
+          "value": 
+          {"$dnanexus_link": {"project": "project-Fkb6Gkj433GVVvj73J7x8KbV","id": "file-Fz4X61Q44Bv44FyfJX1jJPj6"}}
+        },
+        {
+          "project": "project-Fkb6Gkj433GVVvj73J7x8KbV",
+          "path": "/assets/tso500_localApp/v2.2/"
+        }
+      ],
+      "optional": false
+    },
+    {
+      "name": "input_files",
+      "label": "input files",
+      "help": "Zipped runfolder or array of fastqs",
+      "class": "array:file",
+      "patterns": ["*.tar.gz","*.fastq.gz"],
+      "optional": false
+    },
+    {
+      "name": "isNovaSeq",
+      "label": "isNovaSeq",
+      "help": "(Optional) flag to specify NovaSeq data. (default = true)",
+      "class": "boolean",
+      "optional": true,
+      "default": true
+    },
+    {
+      "name": "isFastQ",
+      "label": "isFastQ",
+      "help": "(Optional) flag to run from fastq input",
+      "class": "boolean",
+      "optional": true,
+      "default": false
+    },
+    {
+      "name": "demultiplexOnly",
+      "label": "demultiplex Only",
+      "help": "(Optional) flag to demultiplex a runfolder and upload the fastq files",
+      "class": "boolean",
+      "optional": true,
+      "default": false
+    },
+    {
+      "name": "samplesheet",
+      "label": "samplesheet",
+      "help": "The SampleSheet used for demultiplexing",
+      "class": "file",
+      "optional": true,
+      "patterns": ["*.csv"]
+    },
+    {
+      "name": "analysis_options",
+      "label": "analysis_options",
+      "help": "An optional string passed to analysis script",
+      "class": "string",
+      "optional": true
+    }
+  ],
+  "outputSpec": [
+    {
+      "name": "analysis_folder",
+      "label": "analysis_folder",
+      "help": "All files within the analysis folder.",
+      "class": "array:file"
+    },
+    {
+      "name": "logs",
+      "label": "logs",
+      "help": "stdout logs created during analysis",
+      "class": "array:file"
+    }
+  ],
+  "runSpec": {
+    "execDepends": [
+    ],
+    "distribution" : "Ubuntu",
+    "release":"16.04",
+    "file": "src/code.sh",
+    "interpreter": "bash",
+    "assetDepends": [
+    ]
+  },
+  "access": {
+    "allProjects":"UPLOAD",
+    "network": [
+      "*"
+    ]
+  },
+  "regionalOptions": {
+    "aws:eu-central-1": {
+      "systemRequirements": {
+        "main": {
+          "instanceType": "mem1_ssd1_x32"
+        }
+      }
+    }
+  }
+}
