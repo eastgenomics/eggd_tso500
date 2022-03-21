@@ -5,10 +5,10 @@
   "tags": [
   ],
   "properties": {
-    "github release": "1.2.0"
+    "github release": "1.2.1"
   },
   "dxapi": "1.0.0",
-  "version":"1.2.0",
+  "version":"1.2.1",
   "openSource": true,
   "inputSpec": [
     {
@@ -20,7 +20,7 @@
       "suggestions": [
         {
           "name": "TSO500 Local App v2.2 Asset Bundle",
-          "value": 
+          "value":
           {"$dnanexus_link": {"project": "project-Fkb6Gkj433GVVvj73J7x8KbV","id": "file-Fz4X61Q44Bv44FyfJX1jJPj6"}}
         },
         {
@@ -97,6 +97,7 @@
     ],
     "distribution" : "Ubuntu",
     "release":"20.04",
+    "version":"0",
     "file": "src/code.sh",
     "interpreter": "bash",
     "timeoutPolicy": {
