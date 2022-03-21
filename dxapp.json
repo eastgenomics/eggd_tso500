@@ -96,12 +96,12 @@
     "execDepends": [
     ],
     "distribution" : "Ubuntu",
-    "release":"16.04",
+    "release":"20.04",
     "file": "src/code.sh",
     "interpreter": "bash",
     "timeoutPolicy": {
       "*": {
-        "hours": 30
+        "hours": 48
       }
     },
     "assetDepends": [
@@ -115,10 +115,7 @@
     "org-emee_1"
   ],
   "access": {
-    "allProjects":"UPLOAD",
-    "network": [
-      "*"
-    ]
+    "allProjects":"UPLOAD"
   },
   "regionalOptions": {
     "aws:eu-central-1": {
