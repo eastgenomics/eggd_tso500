@@ -119,7 +119,7 @@ _upload_all_output() {
   : '''
   Upload all data in /home/dnanexus/out/
 
-  We are going to upload all output in the folder structure as
+  We are going to upload all outputs in the folder structure as
   output by the local app, but set the following types of output
   files to arrays of their own:
 
@@ -131,14 +131,6 @@ _upload_all_output() {
   
   This is to allow downstream app(s) to take in these as inputs
   since the local app outputs multiple of the same file type
-
-  TODO
-
-  Need to:
-  - separate out bams, gvcfs, fastqs, metricsOutput, CVO
-
-  want to upload in same path, but set the file IDs of these to be distinct outputs
-
   '''
   echo "Total files to upload: $(find /home/dnanexus/out/ -type f | wc -l)"
   SECONDS=0
@@ -227,7 +219,7 @@ _scatter() {
     "n_proc" input (default: 8). This will need balancing against the
     total CPU and memory available, as if the number of parallel jobs
     compute requirements peak usage exceeds the total available in
-    the instance it will cause the job to fail.
+    the instance it will cause the job to fail :sadpanda:
     '''
     SECONDS=0
     echo "Starting scatter jobs for $(wc -w <<< $sample_list) samples with ${n_proc} processes"
