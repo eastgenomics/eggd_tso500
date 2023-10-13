@@ -7,11 +7,6 @@ PS4='$(date)\011 '
 export TZ=Europe/London
 set -exo pipefail
 
-# prefix every line in logs with time stamp
-# export TZ=Europe/London
-# exec > >(trap "" INT TERM; sed "s/^/[$(date)] /")
-# exec 2> >(trap "" INT TERM; sed "s/^/[$(date)] /" >&2)
-
 
 _get_tso_resources() {
     : '''
@@ -28,28 +23,6 @@ _get_tso_resources() {
     duration=$SECONDS
     sleep 5
     echo "Downloading and unpacking ${TSO500_ruo_name} took $(($duration / 60))m$(($duration % 60))s"
-}
-
-
-_get_samplesheet() {
-    : '''
-    Download samplesheet either from input or find it from the run data
-    '''
-    if [[ "$samplesheet" ]]; then
-        # using provided samplesheet
-        echo "Using provided sample sheet: ${samplesheet_name}"
-        dx download "$samplesheet" -o runfolder/SampleSheet.csv
-    elif [[ $(find ./ -regextype posix-extended  -iregex '.*sample[-_ ]?sheet.csv$') ]]; then
-        # Sample sheet not given, try finding it in the run folder
-        # Use regex to account for anything named differently
-        # e.g. run-id_SampleSheet.csv, sample_sheet.csv, Sample Sheet.csv, sampleSheet.csv etc.
-        samplesheet=$(find ./ -regextype posix-extended  -iregex '.*sample[-_ ]?sheet.csv$')
-        echo "Using sample sheet in run directory: $samplesheet"
-        mv "$samplesheet" /home/dnanexus/runfolder/SampleSheet.csv
-    else
-        dx-jobutil-report-error "No SampleSheet could be found."
-        exit 1
-    fi
 }
 
 
@@ -99,6 +72,28 @@ _get_input_files() {
     duration=$SECONDS
     sleep 5
     echo "Downloaded $(wc -w <<< ${file_ids}) files in $(($duration / 60))m$(($duration % 60))s"
+}
+
+
+_get_samplesheet() {
+    : '''
+    Download samplesheet either from input or find it from the run data
+    '''
+    if [[ "$samplesheet" ]]; then
+        # using provided samplesheet
+        echo "Using provided sample sheet: ${samplesheet_name}"
+        dx download "$samplesheet" -o runfolder/SampleSheet.csv
+    elif [[ $(find ./ -regextype posix-extended  -iregex '.*sample[-_ ]?sheet.csv$') ]]; then
+        # Sample sheet not given, try finding it in the run folder
+        # Use regex to account for anything named differently
+        # e.g. run-id_SampleSheet.csv, sample_sheet.csv, Sample Sheet.csv, sampleSheet.csv etc.
+        samplesheet=$(find ./ -regextype posix-extended  -iregex '.*sample[-_ ]?sheet.csv$')
+        echo "Using sample sheet in run directory: $samplesheet"
+        mv "$samplesheet" /home/dnanexus/runfolder/SampleSheet.csv
+    else
+        dx-jobutil-report-error "No SampleSheet could be found."
+        exit 1
+    fi
 }
 
 
