@@ -1,14 +1,9 @@
 {
   "name": "eggd_tso500",
   "title": "eggd_tso500",
-  "summary": "Somatic variant calling for DNA & RNA samples",
-  "tags": [
-  ],
-  "properties": {
-    "github release": "1.2.1"
-  },
+  "summary": "Somatic variant calling for DNA & RNA samples using TSO500 local app",
   "dxapi": "1.0.0",
-  "version":"1.2.1",
+  "version":"1.3.0",
   "openSource": true,
   "inputSpec": [
     {
@@ -20,47 +15,29 @@
       "suggestions": [
         {
           "name": "TSO500 Local App v2.2 Asset Bundle",
-          "value":
-          {"$dnanexus_link": {"project": "project-Fkb6Gkj433GVVvj73J7x8KbV","id": "file-Fz4X61Q44Bv44FyfJX1jJPj6"}}
+          "value": {
+            "$dnanexus_link": {
+              "project": "project-Fkb6Gkj433GVVvj73J7x8KbV",
+              "id": "file-Fz4X61Q44Bv44FyfJX1jJPj6"
+            }
+          }
         },
         {
           "project": "project-Fkb6Gkj433GVVvj73J7x8KbV",
           "path": "/assets/tso500_localApp/v2.2/"
         }
       ],
-      "optional": false
+      "optional": false,
+      "group": "files"
     },
     {
       "name": "input_files",
       "label": "input files",
-      "help": "Zipped runfolder or array of fastqs",
+      "help": "tar files of runfolder or array of fastqs",
       "class": "array:file",
-      "patterns": ["*.tar.gz","*.fastq.gz"],
-      "optional": false
-    },
-    {
-      "name": "isNovaSeq",
-      "label": "isNovaSeq",
-      "help": "(Optional) flag to specify NovaSeq data. (default = true)",
-      "class": "boolean",
-      "optional": true,
-      "default": true
-    },
-    {
-      "name": "isFastQ",
-      "label": "isFastQ",
-      "help": "(Optional) flag to run from fastq input",
-      "class": "boolean",
-      "optional": true,
-      "default": false
-    },
-    {
-      "name": "demultiplexOnly",
-      "label": "demultiplex Only",
-      "help": "(Optional) flag to demultiplex a runfolder and upload the fastq files",
-      "class": "boolean",
-      "optional": true,
-      "default": false
+      "patterns": ["*.tar.gz", "*.fastq.gz"],
+      "optional": false,
+      "group": "files"
     },
     {
       "name": "samplesheet",
@@ -68,14 +45,56 @@
       "help": "The SampleSheet used for demultiplexing",
       "class": "file",
       "optional": true,
-      "patterns": ["*.csv"]
+      "patterns": ["*.csv"],
+      "group": "files"
     },
     {
       "name": "analysis_options",
       "label": "analysis_options",
       "help": "An optional string passed to analysis script",
       "class": "string",
-      "optional": true
+      "optional": true,
+      "group": "options"
+    },
+    {
+      "name": "n_proc",
+      "label": "processes",
+      "help": "number of concurrent samples to process in scatter mode",
+      "class": "int",
+      "default": 8,
+      "group": "options"
+    },
+    {
+      "name": "isNovaSeq",
+      "label": "isNovaSeq",
+      "help": "(Optional) flag to specify NovaSeq data. (default = true)",
+      "class": "boolean",
+      "default": true,
+      "group": "options"
+    },
+    {
+      "name": "isFastQ",
+      "label": "isFastQ",
+      "help": "(Optional) flag to run from fastq input",
+      "class": "boolean",
+      "default": false,
+      "group": "options"
+    },
+    {
+      "name": "demultiplexOnly",
+      "label": "demultiplex Only",
+      "help": "(Optional) flag to demultiplex a runfolder and upload the fastq files",
+      "class": "boolean",
+      "default": false,
+      "group": "options"
+    },
+    {
+      "name": "n_samples",
+      "label": "no. samples",
+      "help": "number of samples to limit running analysis for",
+      "class": "int",
+      "optional": true,
+      "group": "testing"
     }
   ],
   "outputSpec": [
@@ -102,14 +121,13 @@
     "interpreter": "bash",
     "timeoutPolicy": {
       "*": {
-        "hours": 48
+        "hours": 16
       }
     },
     "assetDepends": [
     ]
   },
   "developers":[
-    "user-toutoua",
     "org-emee_1"
   ],
   "authorizedUsers": [
