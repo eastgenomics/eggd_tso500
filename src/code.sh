@@ -119,6 +119,19 @@ _upload_all_output() {
   : '''
   Upload all data in /home/dnanexus/out/
 
+  We are going to upload all output in the folder structure as
+  output by the local app, but set the following types of output
+  files to arrays of their own:
+
+  - FASTQs
+  - BAMs
+  - gVCFs
+  - CombinedVariantOutput tsvs
+  - MetricsOutput.tsv
+  
+  This is to allow downstream app(s) to take in these as inputs
+  since the local app outputs multiple of the same file type
+
   TODO
 
   Need to:
@@ -130,9 +143,32 @@ _upload_all_output() {
   echo "Total files to upload: $(find /home/dnanexus/out/ -type f | wc -l)"
   SECONDS=0
 
-
   # upload all output files in parallel and add to output spec
   export -f _upload_single_file 
+
+  # find each of the sets of files we want to split as distinct outputs,
+  # upload them and move them out of the path to prevent uploading again
+  fastqs=$(find "/home/dnanexus/out/PATH" -type f )
+  xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} fastqs" <<< "$fastqs"
+  mv "$fastqs" /tmp
+
+  bams=$(find "/home/dnanexus/out/PATH" -type f )
+  xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} bams" <<< "$bams"
+  mv "$bams" /tmp
+
+  gvcfs=$(find "/home/dnanexus/out/PATH" -type f )
+  xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} gvcfs" <<< "$gvcfs"
+  mv "$gvcfs" /tmp
+
+  cvo=$(find "/home/dnanexus/out/PATH" -type f )
+  xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} cvo" <<< "$cvo"
+  mv "$cvo" /tmp
+
+  metrics_file_id=$(dx upload -p out/Results/MetricsOutput.tsv --path "$remote_path" --brief)
+  dx-jobutil-add-output "metrics" "$metrics_file_id" --file
+  mv out/Results/MetricsOutput.tsv /tmp
+
+  # upload rest of files
   find "/home/dnanexus/out/" -type f | xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {}"
 
   duration=$SECONDS
@@ -143,14 +179,22 @@ _upload_all_output() {
 _upload_single_file(){
   : '''
   Uploads single file with dx upload and associates uploaded file ID to output spec
+
+  Arguments
+  ---------
+    1 : str
+        path and file to upload
+    2 : str
+        app output field to set the uploaded file to
   '''
   local file=$1
+  local field=$2
   local remote_path=$(sed s'/\/home\/dnanexus\/out\//' <<< "$file")
 
   echo "file: ${file}"
 
   file_id=$(dx upload -p "$file" --path "$remote_path" --brief)
-  dx-jobutil-add-output output_files "$file_id" --array
+  dx-jobutil-add-output "$field" "$file_id" --array
 }
 
 
@@ -197,7 +241,7 @@ _scatter() {
         echo "$sample_list" | /usr/bin/time -v xargs -n1 -P"$n_proc" -I{} sh -c " \
             echo Starting analysis for {} && \
             sudo bash TSO500_ruo/TSO500_RUO_LocalApp/TruSight_Oncology_500_RUO.sh \
-            --analysisFolder /home/dnanexus/out/analysis_folder/{}_output \
+            --analysisFolder /home/dnanexus/out/analysis/{}_output \
             --fastqFolder /home/dnanexus/fastqFolder \
             --resourcesFolder /home/dnanexus/TSO500_ruo/TSO500_RUO_LocalApp/resources \
             --sampleSheet /home/dnanexus/runfolder/SampleSheet.csv \
@@ -232,15 +276,15 @@ _gather() {
     '''
         sample_output_dirs=""
         for sample in $sample_list; do
-            sample_output_dirs+="/home/dnanexus/out/analysis_folder/${sample}_output "
+            sample_output_dirs+="/home/dnanexus/out/analysis/${sample}_output "
         done
 
         /usr/bin/time -v sudo bash TSO500_ruo/TSO500_RUO_LocalApp/TruSight_Oncology_500_RUO.sh \
             --analysisFolder /home/dnanexus/out/GatheredResults \
-            --runFolder /home/dnanexus/fastqFolder \
+            --runFolder /home/dnanexus/runFolder \
             --resourcesFolder /home/dnanexus/TSO500_ruo/TSO500_RUO_LocalApp/resources \
             --sampleSheet /home/dnanexus/runfolder/SampleSheet.csv \
-            --gather /home/dnanexus/runfolder/ "${sample_output_dirs}" \
+            --gather /home/dnanexus/fastqFolder/ "${sample_output_dirs}" \
             --isNovaSeq
 }
 
@@ -252,7 +296,7 @@ main() {
              /home/dnanexus/fastqFolder \
              /home/dnanexus/TSO500_ruo \
              /home/dnanexus/out/logs/logs \
-             /home/dnanexus/out/analysis_folder
+             /home/dnanexus/out/analysis
 
     # download samplesheet if provided or get from run data and parse out sample names
     _get_samplesheet
@@ -287,7 +331,7 @@ main() {
         else 
             echo "Local App Failed"
             echo "SampleSheet Validation log:"
-            less /home/dnanexus/out/analysis_folder/analysis_folder/Logs_Intermediates/SamplesheetValidation/SamplesheetValidation-*.log
+            less /home/dnanexus/out/analysis/analysis/Logs_Intermediates/SamplesheetValidation/SamplesheetValidation-*.log
 
             dx-jobutil-report-error "ERROR: Workflow failed to complete"
             exit 1
