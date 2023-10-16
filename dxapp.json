@@ -118,7 +118,7 @@
     "distribution" : "Ubuntu",
     "release":"20.04",
     "version":"0",
-    "file": "src/code.sh",
+    "file": "src/test.sh",
     "interpreter": "bash",
     "headJobOnDemand": true,
     "timeoutPolicy": {
