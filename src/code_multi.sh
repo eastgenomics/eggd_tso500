@@ -313,17 +313,16 @@ _scatter() {
 
     # download the sample fastqs into directory for local app
     SECONDS=0
-    details=$(xargs -n1 -P${THREADS} dx describe --json <<< $fastqs)
-    sample_fqs=$(jq -r ".[] | select(.describe.name | startswith(\"${sample}_\")) | .id" <<< $details)
+    set +x  # suppress this going to the logs as its v long
+    details=$(xargs -n1 -P${THREADS} dx describe --json --verbose <<< $fastqs)
+    sample_fqs=$(jq -r "select(.name | startswith(\"${sample}_\")) | .id" <<< $details)
+    set -x
 
-    echo "sample fastqs: ${sample_fqs}"
-
+    echo "sample fastqs parsed: ${sample_fqs}"
     echo $sample_fqs | xargs -n1 -P${THREADS} -I{} sh -c "dx download --no-progress -o /home/dnanexus/fastqFolder/$sample/ {}"
     
     duration=$SECONDS
     echo "Downloaded fastqs in $(($duration / 60))m$(($duration % 60))s"
-    
-    find /home/dnanexus/out/ -type f
     
     # download and unpack local app resources
     _get_tso_resources
@@ -459,7 +458,7 @@ main() {
                 -ifastqs="$fastq_ids" \
                 -ioptions="$options" \
                 --instance-type="$scatter_instance" \
-                --extra-args="{'priority': 'high'}" \
+                --extra-args='{"priority": "high"}' \
                 --name "_scatter [${sample}]" >> job_ids
         done
 
