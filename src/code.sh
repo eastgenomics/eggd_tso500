@@ -2,8 +2,7 @@
 
 # mem3_ssd1_v2_x96
 
-# Output each line as it is executed (-x) and stop if any non zero exit codes are seen (-e)
-PS4='\000 [$(date)]\011 '
+PS4='\000[$(date)]\011'
 export TZ=Europe/London
 set -exo pipefail
 
@@ -142,16 +141,6 @@ _upload_all_output() {
 
     set +x  # disable writing all commands to logs uploading since there are thousands
 
-    # find all the stdout / stderr log files and combine to
-    # single tar to speed up uploading
-    logs=$(find "/home/dnanexus/out/" -name "*stderr*|*stdout*|*.log")
-    mkdir all_logs && mv "$logs" all_logs/
-    tar cf all_logs.tar.gz "$logs"
-
-    log_file_id=$(dx upload -p all_logs.tar.gz --brief)
-    dx-jobutil-add-output "logs" "$log_file_id" --file
-
-
     # find each of the sets of files we want to split as distinct outputs,
     # upload them and move them out of the path to prevent uploading again
     fastqs=$(find "/home/dnanexus/out/PATH" -type f -name "*fastq.gz")
@@ -169,6 +158,15 @@ _upload_all_output() {
     cvo=$(find "/home/dnanexus/out/analysis/Logs_Intermediates/" -type f "*CombinedVariantOutput.tsv")
     xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} cvo" <<< "$cvo"
     mv "$cvo" /tmp
+
+    # find all the stdout / stderr log files and combine to
+    # single tar to speed up uploading
+    logs=$(find "/home/dnanexus/out/" -name "*stderr*|*stdout*|*.log")
+    mkdir all_logs && mv "$logs" all_logs/
+    tar cf all_logs.tar.gz "$logs"
+
+    log_file_id=$(dx upload -p all_logs.tar.gz --brief)
+    dx-jobutil-add-output "logs" "$log_file_id" --file
 
     metrics_file_id=$(dx upload -p out/analysis/Results/MetricsOutput.tsv --path "$remote_path" --brief)
     dx-jobutil-add-output "metrics" "$metrics_file_id" --file
