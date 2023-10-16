@@ -313,7 +313,7 @@ _scatter() {
 
     # download the sample fastqs into directory for local app
     SECONDS=0
-    details=$(xargs -n1 -p${THREADS} dx describe --json <<< $fastqs)
+    details=$(xargs -n1 -P${THREADS} dx describe --json <<< $fastqs)
     sample_fqs=$(jq -r ".[] | select(.describe.name | startswith(\"${sample}_\")) | .id" <<< $details)
 
     echo "sample fastqs: ${sample_fqs}"
@@ -459,6 +459,7 @@ main() {
                 -ifastqs="$fastq_ids" \
                 -ioptions="$options" \
                 --instance-type="$scatter_instance" \
+                --extra-args="{'priority': 'high'}" \
                 --name "_scatter [${sample}]" >> job_ids
         done
 
