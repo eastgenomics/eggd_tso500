@@ -108,7 +108,8 @@
       "name": "logs",
       "label": "logs",
       "help": "stdout logs created during analysis",
-      "class": "array:file"
+      "class": "array:file",
+      "optional": true
     }
   ],
   "runSpec": {
@@ -119,9 +120,10 @@
     "version":"0",
     "file": "src/code.sh",
     "interpreter": "bash",
+    "headJobOnDemand": true,
     "timeoutPolicy": {
       "*": {
-        "hours": 16
+        "hours": 7
       }
     },
     "assetDepends": [
