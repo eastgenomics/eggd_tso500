@@ -57,11 +57,11 @@
       "group": "options"
     },
     {
-      "name": "n_proc",
-      "label": "processes",
-      "help": "number of concurrent samples to process in scatter mode",
-      "class": "int",
-      "default": 8,
+      "name": "scatter_instance",
+      "label": "scatter instance",
+      "help": "instance type to use for scatter sub jobs",
+      "class": "string",
+      "default": "mem1_ssd1_v2_x36",
       "group": "options"
     },
     {
@@ -99,10 +99,45 @@
   ],
   "outputSpec": [
     {
+      "name": "fastqs",
+      "label": "fastqs",
+      "class": "array:file",
+      "help": "fastqs from demultiplexing",
+      "optional": true
+    },
+    {
+      "name": "bams",
+      "label": "bams",
+      "class": "array:file",
+      "help": "stitched realigned bam files",
+      "optional": true
+    },
+    {
+      "name": "gvcfs",
+      "label": "gvcfs",
+      "class": "array:file",
+      "optional": true
+    },
+    {
+      "name": "cvo",
+      "label": "combined variant outputs",
+      "class": "array:file",
+      "help": "combined variant output tsv files",
+      "optional": true
+    },
+    {
+      "name": "metricsOutput",
+      "label": "MetricsOutput",
+      "class": "file",
+      "help": "MetricsOuput.tsv file",
+      "optional": true
+    },
+    {
       "name": "analysis_folder",
       "label": "analysis_folder",
       "help": "All files within the analysis folder.",
-      "class": "array:file"
+      "class": "array:file",
+      "optional": true
     },
     {
       "name": "logs",
@@ -118,7 +153,7 @@
     "distribution" : "Ubuntu",
     "release":"20.04",
     "version":"0",
-    "file": "src/test.sh",
+    "file": "src/code_multi.sh",
     "interpreter": "bash",
     "headJobOnDemand": true,
     "timeoutPolicy": {
