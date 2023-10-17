@@ -88,7 +88,7 @@ _get_scatter_job_outputs() {
     # filter down files in job output folder to ensure they're from
     # one of our scatter jobs that just ran
     job_ids=$(sed 's/\n/|/g;s/|$//' job_ids)
-    jq "map(select(.describe.createdBy.job | test(\"$job_ids\")))" <<< $job_ids
+    jq "map(select(.describe.createdBy.job | test(\"$job_ids\")))" <<< $scatter_files
 
     # turn describe output into id:/path/to/file to download with dir structure
     files=$(jq -r '.[] | .id + ":" + .describe.folder + "/" + .describe.name'  <<< $job_ids)
@@ -374,7 +374,7 @@ _scatter() {
 
     # upload rest of files
     export -f _upload_single_file
-    find /home/dnanexus/out/$sample -type f | xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} analysis_folder"
+    find /home/dnanexus/out/analysis/$sample -type f | xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} analysis_folder"
     
     duration="$SECONDS"
     echo "Uploading completed in ${sample} in $(($duration / 60))m$(($duration % 60))s"
