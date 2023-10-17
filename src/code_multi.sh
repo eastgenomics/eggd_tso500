@@ -375,7 +375,12 @@ _scatter() {
     # log_file_id=$(dx upload -p all_logs.tar.gz --brief)
     # dx-jobutil-add-output "logs" "$log_file_id" --file
 
-    # upload rest of files
+    # upload rest of files, first move all output files to have the
+    # job output in the path for correct upload location
+    job_output_path=$(dx describe --json "$DX_JOB_ID" | jq -r '.folder')
+    mkdir /home/dnanexus/out/${job_output_path}
+    mv /home/dnanexus/out/analysis/ /home/dnanexus/out/${job_output_path}/
+
     export -f _upload_single_file
     find /home/dnanexus/out/analysis/${sample}_output -type f \
         | xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} analysis_folder"
