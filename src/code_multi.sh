@@ -83,7 +83,7 @@ _get_scatter_job_outputs() {
     echo "Downloading scatter job output"
 
     output_path=$(dx describe --json "$DX_JOB_ID" | jq -r '.folder')
-    scatter_files=$(dx find data --json "$output_path")
+    scatter_files=$(dx find data --json --path "$output_path")
 
     # filter down files in job output folder to ensure they're from
     # one of our scatter jobs that just ran
@@ -92,7 +92,12 @@ _get_scatter_job_outputs() {
 
     # turn describe output into id:/path/to/file to download with dir structure
     files=$(jq -r '.[] | .id + ":" + .describe.folder + "/" + .describe.name'  <<< $job_ids)
-    xargs -n1 -P${THREADS} -I{} sh -c "IFS=: read -r id path <<< {}; dx download $id -o out/$path" <<< $files
+
+    # remove the beginning of the remote path (i.e. what was set of the app output)
+    # to just leave the path we had in the scatter job for the output
+    files=$(awk '{gsub("\/(.*?)analysis\/", ""); print}' <<< $files)
+
+    xargs -n1 -P${THREADS} -I{} sh -c "IFS=: read -r id path <<< {}; dx download $id -o out/analysis/$path" <<< $files
 
     duration=$SECONDS
     echo "Downloaded $(wc -w <<< ${files}) files (${total}) in $(($duration / 60))m$(($duration % 60))s"
@@ -232,8 +237,8 @@ _upload_single_file(){
 _upload_demultiplex_output() {
     : '''
     Upload output of demultiplexing into project, this will be called
-    before launching per sample jobs since the fastqs need to be
-    provided as input to the scatter sub job
+    before launching per sample scatter jobs since the fastqs need to
+    be provided as input to the scatter sub job
     '''
     echo "Uploading demultiplexing output"
     SECONDS=0
@@ -249,9 +254,6 @@ _upload_demultiplex_output() {
 
     duration=$SECONDS
     echo "Uploading took $(($duration / 60))m$(($duration % 60))s."
-    
-    sleep 300
-
 }
 
 
@@ -426,17 +428,17 @@ main() {
         _demultiplex
 
         _upload_demultiplex_output
-
-        # get the file IDs of the fastqs we have just uploaded from demultiplexing
-        fastqs=$(cat job_output.json | jq -r '.fastqs[][]')
     fi
 
     if [[ "$demultiplexOnly" == false ]]; then
         # start up analysis, running one instance of the local app per sample in parallel
 
-        if [ "$isFastQ" = true ]; then
+        if [ "$isFastQ" == true ]; then
             # get the file IDs of the fastqs provided as input
             fastq_ids=$(grep -Po  "file-[\d\w]+" <<< "${input_files[@]}")
+        else
+            # get the file IDs of the fastqs we have just uploaded from demultiplexing
+            fastq_ids=$(cat job_output.json | jq -r '.fastqs[][]')
         fi
         
         # Adds additional non-specified optional arguments to the command
@@ -447,7 +449,6 @@ main() {
         # format inputs for launching jobs
         samplesheet_id=$(grep -oe "file-[0-9A-Za-z]*" <<< "$samplesheet")
         tso_ruo_id=$(grep -oe "file-[0-9A-Za-z]*" <<< "$TSO500_ruo")
-        # fastq_ids=$(for i in $fastqs; do sed "s/^/-ifastqs=/g" <<< $i; done)
 
         # start up job for every sample in scatter mode to run analysis
         for sample in $sample_list; do
