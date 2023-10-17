@@ -374,7 +374,7 @@ _scatter() {
 
     # upload rest of files
     export -f _upload_single_file
-    find /home/dnanexus/out/analysis/$sample -type f | xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} analysis_folder"
+    find /home/dnanexus/out/analysis/${sample}_output -type f | xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} analysis_folder"
     
     duration="$SECONDS"
     echo "Uploading completed in ${sample} in $(($duration / 60))m$(($duration % 60))s"
