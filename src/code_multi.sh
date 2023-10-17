@@ -374,7 +374,8 @@ _scatter() {
 
     # upload rest of files
     export -f _upload_single_file
-    find /home/dnanexus/out/analysis/${sample}_output -type f | xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} analysis_folder"
+    find /home/dnanexus/out/analysis/${sample}_output -type f \
+        | xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} analysis_folder"
     
     duration="$SECONDS"
     echo "Uploading completed in ${sample} in $(($duration / 60))m$(($duration % 60))s"
@@ -416,8 +417,7 @@ main() {
     # _get_tso_resources
 
     # download samplesheet if provided or get from run data and parse out sample names
-    _get_samplesheet
-    _parse_sample_names
+    _get_samplesheet && _parse_sample_names
 
     echo "Starting analysis"
 
