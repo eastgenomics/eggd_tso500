@@ -97,6 +97,7 @@ _get_scatter_job_outputs() {
     # to just leave the path we had in the scatter job for the output
     files=$(awk '{gsub("\/(.*?)analysis\/", ""); print}' <<< $files)
 
+    # download all the files and build aggregated directory structure
     xargs -n1 -P${THREADS} -I{} sh -c "IFS=: read -r id path <<< {}; dx download $id -o out/analysis/$path" <<< $files
 
     duration=$SECONDS
