@@ -253,6 +253,8 @@ _upload_demultiplex_output() {
     SECONDS=0
     export -f _upload_single_file
 
+    # first upload fastqs to set to distinct fastqs output field,
+    # then upload the rest
     fastqs=$(find "/home/dnanexus/out/fastqFolder" -type f -name "*fastq.gz")
     xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} fastqs" <<< "$fastqs"
     xargs -n1 -I{} mv {} /tmp <<< $fastqs
@@ -407,6 +409,9 @@ _gather() {
         sample_output_dirs+="/home/dnanexus/out/analysis/${sample}_output "
     done
 
+    SECONDS=0
+    echo "Starting gather step to aggregate per sample results"
+
     /usr/bin/time -v sudo bash TSO500_ruo/TSO500_RUO_LocalApp/TruSight_Oncology_500_RUO.sh \
         --analysisFolder /home/dnanexus/out/GatheredResults \
         --runFolder /home/dnanexus/runfolder \
@@ -414,6 +419,9 @@ _gather() {
         --sampleSheet /home/dnanexus/runfolder/SampleSheet.csv \
         --gather /home/dnanexus/out/fastqFolder/ "${sample_output_dirs}" \
         --isNovaSeq
+    
+    duration="$SECONDS"
+    echo "Gather step completed in ${sample} in $(($duration / 60))m$(($duration % 60))s"
 }
 
 
@@ -487,25 +495,6 @@ main() {
         _gather
 
         echo "All workflows complete"
-
-        # # final check of if everything was successful
-        # for file in logs/logs/*; do
-        #     failed=""
-        #     if [[ ! $(grep "WorkflowSucceededState" "${file}") ]]; then
-        #         failed+="${file} "
-        #     fi
-        # done
-
-        # # one or more single workflows failed
-        # if [[ "$failed" ]]; then
-        #     echo "Single workflows failed for: ${failed}"
-        #     for file in $failed; do
-        #         tail -n50 $file
-        #     done
-
-        #     dx-jobutil-report-error "ERROR: Workflow failed to complete"
-        #     exit 1 
-        # fi
 
         # upload our output files
         _upload_all_output
