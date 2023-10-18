@@ -112,7 +112,6 @@ _get_scatter_job_outputs() {
     echo "Downloaded $(wc -w <<< ${files}) files (${total}) in $(($duration / 60))m$(($duration % 60))s"
 }
 
-bash-3.2$ echo $files | xargs -n1  -Ifile bash -c "d=file; a=${d%:*}; b=${d##*:}; echo $a"
 
 _get_samplesheet() {
     : '''
