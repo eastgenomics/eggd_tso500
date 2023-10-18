@@ -41,7 +41,8 @@ _get_input_files() {
         
         total=$(du -sh /home/dnanexus/out/fastqFolder/ | cut -f1)
         
-        # The app requires the fastq files to be present in individual sample folders
+        # app requires the fastq files to be present in individual sample folders
+        set +x  # disable set to limit dumping 4 extra lines per file into logs
         files=$(find /home/dnanexus/out/fastqFolder/ -name "*fastq.gz" -printf "%f\n")
         for fastq_file in $files; do 
             # FastQ files expected  in standard naming format i.e. SampleID_S6_L002_R2_001.fastq.gz
@@ -51,6 +52,7 @@ _get_input_files() {
             mkdir -p "$sample_dir"
             mv "/home/dnanexus/out/fastqFolder/${fastq_file}"  "$sample_dir"
         done
+        set -x
     else
         # If the analysis input is not FASTQs expect tar archive(s) of bcl files§
         # download the runfolder input, decompress and save in directory 'runfolder'
@@ -83,27 +85,34 @@ _get_scatter_job_outputs() {
     echo "Downloading scatter job output"
 
     output_path=$(dx describe --json "$DX_JOB_ID" | jq -r '.folder')
-    scatter_files=$(dx find data --json --path "$output_path")
+    scatter_files=$(dx find data --json --verbose --path "$output_path")
 
     # filter down files in job output folder to ensure they're from
     # one of our scatter jobs that just ran
     job_ids=$(sed 's/\n/|/g;s/|$//' job_ids)
-    jq "map(select(.describe.createdBy.job | test(\"$job_ids\")))" <<< $scatter_files
+    scatter_files=$(jq "map(select(.describe.createdBy.job | test(\"$job_ids\")))" <<< $scatter_files)
 
     # turn describe output into id:/path/to/file to download with dir structure
-    files=$(jq -r '.[] | .id + ":" + .describe.folder + "/" + .describe.name'  <<< $job_ids)
+    files=$(jq -r '.[] | .id + ":" + .describe.folder + "/" + .describe.name'  <<< $scatter_files)
 
-    # remove the beginning of the remote path (i.e. what was set of the app output)
+    # remove the beginning of the remote path (i.e. what was set for the app output)
     # to just leave the path we had in the scatter job for the output
     files=$(awk '{gsub("\/(.*?)analysis\/", ""); print}' <<< $files)
 
     # download all the files and build aggregated directory structure
-    xargs -n1 -P${THREADS} -I{} sh -c "IFS=: read -r id path <<< {}; dx download $id -o out/analysis/$path" <<< $files
+    cmds=$(for f in  $files; do \
+        id=${f%:*}; path=${f##*:}; dir=$(dirname $path); \
+        echo "'mkdir -p out/analysis/$dir && dx download -r $id -o out/analysis/$path'"; done)
+
+    echo $cmds | xargs -n1 -P${THREADS} bash -c
+
+    # xargs -n1 -P${THREADS} -Ifile bash -c "IFS=: read -r id path <<< file; echo dx download $id -o out/analysis/$path" <<< $files
 
     duration=$SECONDS
     echo "Downloaded $(wc -w <<< ${files}) files (${total}) in $(($duration / 60))m$(($duration % 60))s"
 }
 
+bash-3.2$ echo $files | xargs -n1  -Ifile bash -c "d=file; a=${d%:*}; b=${d##*:}; echo $a"
 
 _get_samplesheet() {
     : '''
@@ -230,7 +239,7 @@ _upload_single_file(){
   local field=$2
   local remote_path=$(sed s'/\/home\/dnanexus\/out\///' <<< "$file")
 
-  file_id=$(dx upload -p "$file" --path "$remote_path" --brief)
+  file_id=$(dx upload "$file" --path "$remote_path" --parents --brief)
   dx-jobutil-add-output "$field" "$file_id" --array
 }
 
@@ -250,8 +259,7 @@ _upload_demultiplex_output() {
     xargs -n1 -I{} mv {} /tmp <<< $fastqs
 
     # upload rest of files
-    find "/home/dnanexus/out/" -type f | xargs -P ${THREADS} -n1 -I{} \
-        bash -c "_upload_single_file {} analysis_folder"
+    find "/home/dnanexus/out/fastqFolder/" -type f | xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} analysis_folder"
 
     duration=$SECONDS
     echo "Uploading took $(($duration / 60))m$(($duration % 60))s."
@@ -382,11 +390,12 @@ _scatter() {
     mv /home/dnanexus/out/analysis/ /home/dnanexus/out/${job_output_path}/
 
     export -f _upload_single_file
-    find /home/dnanexus/out/analysis/${sample}_output -type f \
-        | xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} analysis_folder"
+    find /home/dnanexus/out/ -type f | xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} analysis_folder"
     
     duration="$SECONDS"
     echo "Uploading completed in ${sample} in $(($duration / 60))m$(($duration % 60))s"
+
+    find /home/dnanexus/out/ -type f
 }
 
 
@@ -419,10 +428,10 @@ main() {
              /home/dnanexus/out/analysis
 
     # download sample data (either tar files or fastqs)
-    # _get_input_files
+    _get_input_files
 
     # download, unpack and load TSO500 docker image & resources
-    # _get_tso_resources
+    _get_tso_resources
 
     # download samplesheet if provided or get from run data and parse out sample names
     _get_samplesheet && _parse_sample_names
