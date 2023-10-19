@@ -9,16 +9,18 @@ _get_tso_resources() {
     : '''
     Download and unpack the TSO500 resources zip file
     '''
-    local zip_file=$(dx describe --json "$TSO500_ruo" | jq -r '.name')
-    echo "Downloading and unpacking TSO500 resources zip file"
+    sudo dpkg -i ripunzip_0.4.0_amd64.deb
 
+    local zip_file=$(dx describe --json "$TSO500_ruo" | jq -r '.name')
+    echo "Downloading and unpacking TSO500 resources (${zip_file})"
+
+    SECONDS=0
     dx download "$TSO500_ruo"
-    unzip -q "$zip_file" -d TSO500_ruo
+    ripunzip -d TSO500_ruo file "$zip_file"
     chmod -R 777 TSO500_ruo/TSO500_RUO_LocalApp/
     sudo docker load --input TSO500_ruo/TSO500_RUO_LocalApp/trusight-oncology-500-ruo-dockerimage-ruo-*.tar
 
     duration=$SECONDS
-    sleep 5
     echo "Downloading and unpacking ${zip_file} took $(($duration / 60))m$(($duration % 60))s"
 }
 
@@ -54,7 +56,7 @@ _get_input_files() {
         done
         set -x
     else
-        # If the analysis input is not FASTQs expect tar archive(s) of bcl files§
+        # If the analysis input is not FASTQs expect tar archive(s) of bcl files =>
         # download the runfolder input, decompress and save in directory 'runfolder'
         echo " Downloading tar files"
         
@@ -62,13 +64,12 @@ _get_input_files() {
         file_ids=$(grep -Po  "file-[\d\w]+" <<< "${input_files[@]}")
 
         echo "$file_ids" | xargs -P ${THREADS} -n1 -I{} sh -c \
-            "dx cat {} | tar xzf - --no-same-owner --absolute-names -C /home/dnanexus/runfolder"
+            "dx cat {} | tar -I pigz -xf - --no-same-owner --absolute-names -C /home/dnanexus/runfolder"
 
         total=$(du -sh /home/dnanexus/runfolder | cut -f1)
     fi
 
     duration=$SECONDS
-    sleep 5
     echo "Downloaded $(wc -w <<< ${file_ids}) files (${total}) in $(($duration / 60))m$(($duration % 60))s"
 }
 
@@ -84,12 +85,13 @@ _get_scatter_job_outputs() {
     SECONDS=0
     echo "Downloading scatter job output"
 
+    # set +x
     output_path=$(dx describe --json "$DX_JOB_ID" | jq -r '.folder')
     scatter_files=$(dx find data --json --verbose --path "$output_path")
 
     # filter down files in job output folder to ensure they're from
     # one of our scatter jobs that just ran
-    job_ids=$(sed 's/\n/|/g;s/|$//' job_ids)
+    job_ids=$(paste -sd "|" job_ids)
     scatter_files=$(jq "map(select(.describe.createdBy.job | test(\"$job_ids\")))" <<< $scatter_files)
 
     # turn describe output into id:/path/to/file to download with dir structure
@@ -97,17 +99,17 @@ _get_scatter_job_outputs() {
 
     # remove the beginning of the remote path (i.e. what was set for the app output)
     # to just leave the path we had in the scatter job for the output
-    files=$(awk '{gsub("\/(.*?)analysis\/", ""); print}' <<< $files)
+    files=$(awk '{gsub("/(.*?)analysis/", ""); print}' <<< $files)
+    set -x
 
-    # download all the files and build aggregated directory structure
+    # build aggregated directory structure and download all files
     cmds=$(for f in  $files; do \
-        id=${f%:*}; path=${f##*:}; dir=$(dirname $path); \
-        echo "'mkdir -p out/analysis/$dir && dx download -r $id -o out/analysis/$path'"; done)
+        id=${f%:*}; path=${f##*:}; dir=$(dirname "$path"); \
+        echo "'mkdir -p out/analysis/$dir && dx download --no-progress $id -o out/analysis/$path'"; done)
 
     echo $cmds | xargs -n1 -P${THREADS} bash -c
 
-    # xargs -n1 -P${THREADS} -Ifile bash -c "IFS=: read -r id path <<< file; echo dx download $id -o out/analysis/$path" <<< $files
-
+    total=$(du -sh /home/dnanexus/out/analysis/ | cut -f1)
     duration=$SECONDS
     echo "Downloaded $(wc -w <<< ${files}) files (${total}) in $(($duration / 60))m$(($duration % 60))s"
 }
@@ -149,77 +151,107 @@ _parse_sample_names() {
         sample_list=$(sed '2p;d' <<< "${sample_list}")
         echo "Samples to run analysis for: ${sample_list}"
     fi
+}
+
+
+_upload_scatter_output() {
+    : '''
+    Upload the per sample output files in a scatter job
+
+    To speed up the upload, logs and stdout/stderr files are combined
+    into a single tar file and all cromwell logs in cromwell-executions/
+    are also combined into a single tar.
+
+    To generate distinct output fields for the app for result files, the bam
+    and index, gVCF and CombinedVariantOutput are first uploading to individual
+    output fields, then the rest of files are uploaded in parallel.
+    '''
+    SECONDS=0
+    echo "Uploading sample output"
+    export -f _upload_single_file
+
+    # tar up all cromwell logs for faster upload
+    tar -I pigz -cf /home/dnanexus/out/analysis/${sample}_output/${sample}_cromwell_executions.tar.gz \
+        /home/dnanexus/out/analysis/${sample}_output/cromwell-executions
+    
+    mv /home/dnanexus/out/analysis/${sample}_output/cromwell-executions/ /tmp/
+
+    mv /home/dnanexus/out/logs/logs/${sample}_scatter_stdout.txt \
+        /home/dnanexus/out/analysis/${sample}_output/
+
+    # tar up all the logs, stdout and stderr for faster upload
+    logs=$(find out/analysis/${sample}_output/ \
+        -name "*.log" -o -name "*.out" -o -name "*.stderr" -o -name "*.stdout")
+    mkdir all_logs && xargs -I{} mv {} all_logs/ <<< "$logs"
+    tar -czf ${sample}_scatter_logs.tar.gz all_logs
+    mv ${sample}_scatter_logs.tar.gz /home/dnanexus/out/analysis/${sample}_output/
+
+    # move selected files to be distinct outputs, including bam, gVCF,
+    # CombinedVariantOutput
+    bams=$(find "/home/dnanexus/out/analysis/${sample}_output/Logs_Intermediates/StitchedRealigned/" -type f -name "*.bam")
+    xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} bams" <<< "$bams"
+    xargs -n1 -I{} mv {} /tmp <<< $bams
+
+    index=$(find "/home/dnanexus/out/analysis/${sample}_output/Logs_Intermediates/StitchedRealigned/" -type f -name "*.bai")
+    xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} bam_index" <<< "$index"
+    xargs -n1 -I{} mv {} /tmp <<< $index
+
+    gvcf=$(find "/home/dnanexus/out/analysis/${sample}_output/Results/${sample}/" -type f -name "*.genome.vcf")
+    xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} gvcfs" <<< "$gvcf"
+    xargs -n1 -I{} mv {} /tmp <<< $gvcf
+
+    cvo=$(find "/home/dnanexus/out/analysis/${sample}_output/Results/${sample}/" -type f -name "*CombinedVariantOutput.tsv")
+    xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} cvo" <<< "$cvo"
+    xargs -n1 -I{} mv {} /tmp <<< $cvo
+
+    # upload rest of files
+    # job_output_path=$(dx describe --json "$DX_JOB_ID" | jq -r '.folder')
+    # mkdir /home/dnanexus/out/${job_output_path}
+    # mv /home/dnanexus/out/analysis/ /home/dnanexus/out/${job_output_path}/
+
+    find /home/dnanexus/out/ -type f | xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} analysis_folder"
+    
+    duration="$SECONDS"
+    echo "Uploading completed in ${sample} in $(($duration / 60))m$(($duration % 60))s"
+
+    sleep 5
+    find /home/dnanexus/out/ -type f
     sleep 5
 }
 
 
-_upload_all_output() {
+_upload_gather_output() {
     : '''
-    Upload all data in /home/dnanexus/out/
-
-    We are going to upload all outputs in the folder structure as
-    output by the local app, but set the following types of output
-    files to arrays of their own:
-
-    - FASTQs
-    - BAMs
-    - gVCFs
-    - CombinedVariantOutput tsvs
-    - MetricsOutput.tsv
-    
-    This is to allow downstream app(s) to take in these as inputs
-    since the local app outputs multiple of the same file type
-
-    Additionally, all files matching *stdout*, *stderr* *log will be
-    combined into a single tar for uploading
+    Upload all data in /home/dnanexus/out/Results
     '''
-    echo "Total files to upload: $(find /home/dnanexus/out/ -type f | wc -l)"
+    echo "Total files to upload: $(find /home/dnanexus/out/Results -type f | wc -l)"
     SECONDS=0
+
+    # link output of sub scatter jobs to parent job
+    while read -r job; do
+        dx-jobutil-add-output bams "${job}":bams --class=array:jobref
+        dx-jobutil-add-output bam_index "${job}":bam_index --class=array:jobref
+        dx-jobutil-add-output gvcfs "${job}":gvcfs --class=array:jobref
+        dx-jobutil-add-output cvo "${job}":cvo --class=array:jobref
+        dx-jobutil-add-output analysis_folder "${job}":analysis_folder --class=array:jobref
+
+    done < job_ids
 
     # upload all output files in parallel and add to output spec
     export -f _upload_single_file
 
-    set +x  # disable writing all commands to logs uploading since there are thousands
-
-    # find each of the sets of files we want to split as distinct outputs,
-    # upload them and move them out of the path to prevent uploading again
-    # fastqs=$(find "/home/dnanexus/out/PATH" -type f -name "*fastq.gz")
-    # xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} fastqs" <<< "$fastqs"
-    # mv "$fastqs" /tmp
-
-    # bams=$(find "/home/dnanexus/out/analysis/Logs_Intermediates/StitchedRealigned/" -type f -name "*bam|*bai")
-    # xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} bams" <<< "$bams"
-    # mv "$bams" /tmp
-
-    # gvcfs=$(find "/home/dnanexus/out/analysis/Logs_Intermediates/VariantCaller/" -type f -name "*genome.vcf")
-    # xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} gvcfs" <<< "$gvcfs"
-    # mv "$gvcfs" /tmp
-
-    # cvo=$(find "/home/dnanexus/out/analysis/Logs_Intermediates/" -type f "*CombinedVariantOutput.tsv")
-    # xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} cvo" <<< "$cvo"
-    # mv "$cvo" /tmp
-
-    # find all the stdout / stderr log files and combine to
-    # single tar to speed up uploading
-    logs=$(find "/home/dnanexus/out/" -name "*stderr*|*stdout*|*.log")
-    mkdir all_logs && mv "$logs" all_logs/
-    tar cf all_logs.tar.gz "$logs"
-
-    log_file_id=$(dx upload -p all_logs.tar.gz --brief)
-    dx-jobutil-add-output "logs" "$log_file_id" --file
+    # set +x  # disable writing all commands to logs uploading since there are thousands
 
     metrics_file_id=$(dx upload -p out/analysis/Results/MetricsOutput.tsv --path "$remote_path" --brief)
-    dx-jobutil-add-output "metrics" "$metrics_file_id" --file
+    dx-jobutil-add-output "metricsOutput" "$metrics_file_id" --file
     mv out/analysis/Results/MetricsOutput.tsv /tmp
 
-    rm -rf /home/dnanexus/out/analysis/Logs_Intermediates/
-
     # upload rest of files
-    find "/home/dnanexus/out/" -type f | xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} analysis_folder"
+    find "/home/dnanexus/out/Results" -type f | xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} analysis_folder"
 
     duration=$SECONDS
     echo "Uploading took $(($duration / 60))m$(($duration % 60))s."
-    set -x
+    # set -x
 }
 
 
@@ -313,7 +345,7 @@ _scatter() {
     set -exo pipefail
 
     # control how many operations to open in parallel for download / upload
-    THREADS=$(echo $(nproc --all) / 2 | bc)
+    THREADS=$(nproc --all)
 
     mkdir -p /home/dnanexus/runfolder \
              /home/dnanexus/TSO500_ruo \
@@ -349,7 +381,7 @@ _scatter() {
             --resourcesFolder /home/dnanexus/TSO500_ruo/TSO500_RUO_LocalApp/resources \
             --sampleSheet /home/dnanexus/SampleSheet.csv \
             --sampleOrPairIDs "$sample" \
-            ${options} 1> /home/dnanexus/out/logs/logs/${sample}_stdout.txt
+            ${options} 2>&1 | tee /home/dnanexus/out/logs/logs/${sample}_scatter_stdout.txt
     
         echo Analysis complete for "$sample"
     } || {
@@ -367,36 +399,10 @@ _scatter() {
         # done
     }
 
-    sleep 10  # add a wait to ensure logs all get written and aren't (quite) as messy
-
     duration="$SECONDS"
     echo "Scatter job complete for ${sample} in $(($duration / 60))m$(($duration % 60))s"
 
-    SECONDS=0
-    echo "Uploading sample output"
-
-    # find all the stdout / stderr log files and combine to
-    # single tar to speed up uploading
-    # logs=$(find "/home/dnanexus/out/" -name "*stderr*|*stdout*|*.log")
-    # mkdir all_logs && mv "$logs" all_logs/
-    # tar cf ${sample}_all_logs.tar.gz "$logs"
-
-    # log_file_id=$(dx upload -p all_logs.tar.gz --brief)
-    # dx-jobutil-add-output "logs" "$log_file_id" --file
-
-    # upload rest of files, first move all output files to have the
-    # job output in the path for correct upload location
-    job_output_path=$(dx describe --json "$DX_JOB_ID" | jq -r '.folder')
-    mkdir /home/dnanexus/out/${job_output_path}
-    mv /home/dnanexus/out/analysis/ /home/dnanexus/out/${job_output_path}/
-
-    export -f _upload_single_file
-    find /home/dnanexus/out/ -type f | xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} analysis_folder"
-    
-    duration="$SECONDS"
-    echo "Uploading completed in ${sample} in $(($duration / 60))m$(($duration % 60))s"
-
-    find /home/dnanexus/out/ -type f
+    _upload_scatter_output
 }
 
 
@@ -413,7 +419,7 @@ _gather() {
     echo "Starting gather step to aggregate per sample results"
 
     /usr/bin/time -v sudo bash TSO500_ruo/TSO500_RUO_LocalApp/TruSight_Oncology_500_RUO.sh \
-        --analysisFolder /home/dnanexus/out/GatheredResults \
+        --analysisFolder /home/dnanexus/out/Results \
         --runFolder /home/dnanexus/runfolder \
         --resourcesFolder /home/dnanexus/TSO500_ruo/TSO500_RUO_LocalApp/resources \
         --sampleSheet /home/dnanexus/runfolder/SampleSheet.csv \
@@ -422,11 +428,19 @@ _gather() {
     
     duration="$SECONDS"
     echo "Gather step completed in ${sample} in $(($duration / 60))m$(($duration % 60))s"
+
+    # final check it was successful
+    if [[ $(grep -i "transitioned to failed" out/Results/gather_run.log) ]]; then
+        echo "Gather step did not complete successfully"
+        cat out/Results/gather_run.log
+        exit 1
+    fi
 }
 
 
 main() {
-    THREADS=$(nproc --all)  # control how many operations to open in parallel for download / upload
+    # control how many operations to open in parallel for download / upload
+    THREADS=$(nproc --all)
 
     mkdir -p /home/dnanexus/runfolder \
              /home/dnanexus/TSO500_ruo \
@@ -496,12 +510,11 @@ main() {
 
         echo "All workflows complete"
 
-        # upload our output files
-        _upload_all_output
+        # upload output files from gather step
+        _upload_gather_output
     fi
 
     # check usage to monitor usage of instance storage
     echo "Total file system usage"
     df -h
-
 }
