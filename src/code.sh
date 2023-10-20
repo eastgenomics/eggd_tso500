@@ -163,7 +163,6 @@ _calculate_total_fq_size() {
     to give an indication of how long sub jobs will take
     '''
     local fastqs=$1
-    # describe=$(xargs -P16 -n1 dx describe --json <<< $fastq_ids)
     set +x
     sizes=$(echo $fastqs \
         | jq -r '.[] | [.name,.size] | @tsv' \
