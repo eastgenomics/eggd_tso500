@@ -160,7 +160,7 @@
     "distribution" : "Ubuntu",
     "release":"20.04",
     "version":"0",
-    "file": "src/code_multi.sh",
+    "file": "src/code.sh",
     "interpreter": "bash",
     "headJobOnDemand": true,
     "timeoutPolicy": {
