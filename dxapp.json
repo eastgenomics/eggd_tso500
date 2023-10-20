@@ -61,7 +61,7 @@
       "label": "scatter instance",
       "help": "instance type to use for scatter sub jobs",
       "class": "string",
-      "default": "mem1_ssd1_v2_x36",
+      "default": "mem1_ssd1_v2_x16",
       "group": "options"
     },
     {
@@ -113,6 +113,13 @@
       "optional": true
     },
     {
+      "name": "bam_index",
+      "label": "bam_index",
+      "class": "array:file",
+      "help": "stitched realigned bam file index",
+      "optional": true
+    },
+    {
       "name": "gvcfs",
       "label": "gvcfs",
       "class": "array:file",
@@ -158,7 +165,7 @@
     "headJobOnDemand": true,
     "timeoutPolicy": {
       "*": {
-        "hours": 7
+        "hours": 12
       }
     },
     "assetDepends": [
