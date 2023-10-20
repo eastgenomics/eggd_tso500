@@ -176,7 +176,6 @@ _upload_scatter_output() {
     # tar up all cromwell logs for faster upload
     tar -I pigz -cf /home/dnanexus/out/analysis/${sample}_output/${sample}_cromwell_executions.tar.gz \
         /home/dnanexus/out/analysis/${sample}_output/cromwell-executions
-    
     mv /home/dnanexus/out/analysis/${sample}_output/cromwell-executions/ /tmp/
 
     # tar up all the logs, stdout and stderr for faster upload
@@ -188,37 +187,33 @@ _upload_scatter_output() {
 
     mv /home/dnanexus/${sample}_scatter_stdout.txt /home/dnanexus/out/analysis/${sample}_output/
 
-    # move selected files to be distinct outputs, including bam, gVCF,
-    # CombinedVariantOutput
-    bams=$(find "/home/dnanexus/out/analysis/${sample}_output/Logs_Intermediates/StitchedRealigned/" -type f -name "*.bam")
+    # move selected files to be distinct outputs, including bam, index, gVCF and CombinedVariantOutput
+    bams=$(find "/home/dnanexus/out/analysis/${sample}_output/Logs_Intermediates/StitchedRealigned/" \
+        -type f -name "*.bam")
     xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} bams" <<< "$bams"
     xargs -n1 -I{} mv {} /tmp <<< $bams
 
-    index=$(find "/home/dnanexus/out/analysis/${sample}_output/Logs_Intermediates/StitchedRealigned/" -type f -name "*.bai")
+    index=$(find "/home/dnanexus/out/analysis/${sample}_output/Logs_Intermediates/StitchedRealigned/" \
+        -type f -name "*.bai")
     xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} bam_index" <<< "$index"
     xargs -n1 -I{} mv {} /tmp <<< $index
 
-    gvcf=$(find "/home/dnanexus/out/analysis/${sample}_output/Results/${sample}/" -type f -name "*.genome.vcf")
+    gvcf=$(find "/home/dnanexus/out/analysis/${sample}_output/Results/${sample}/" \
+        -type f -name "*.genome.vcf")
     xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} gvcfs" <<< "$gvcf"
     xargs -n1 -I{} mv {} /tmp <<< $gvcf
 
-    cvo=$(find "/home/dnanexus/out/analysis/${sample}_output/Results/${sample}/" -type f -name "*CombinedVariantOutput.tsv")
+    cvo=$(find "/home/dnanexus/out/analysis/${sample}_output/Results/${sample}/" \
+        -type f -name "*CombinedVariantOutput.tsv")
     xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} cvo" <<< "$cvo"
     xargs -n1 -I{} mv {} /tmp <<< $cvo
 
     # upload rest of files
-    # job_output_path=$(dx describe --json "$DX_JOB_ID" | jq -r '.folder')
-    # mkdir /home/dnanexus/out/${job_output_path}
-    # mv /home/dnanexus/out/analysis/ /home/dnanexus/out/${job_output_path}/
-
-    find /home/dnanexus/out/ -type f | xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} analysis_folder"
+    find /home/dnanexus/out/ -type f | xargs -P ${THREADS} -n1 -I{} bash -c \
+        "_upload_single_file {} analysis_folder"
     
     duration="$SECONDS"
     echo "Uploading completed in ${sample} in $(($duration / 60))m$(($duration % 60))s"
-
-    sleep 5
-    find /home/dnanexus/out/ -type f
-    sleep 5
 }
 
 
@@ -249,7 +244,8 @@ _upload_gather_output() {
     mv /home/dnanexus/out/Results/Results/MetricsOutput.tsv /tmp
 
     # upload rest of files
-    find "/home/dnanexus/out/Results" -type f | xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} analysis_folder"
+    find "/home/dnanexus/out/Results" -type f | xargs -P ${THREADS} -n1 -I{} bash -c \
+        "_upload_single_file {} analysis_folder"
 
     duration=$SECONDS
     echo "Uploading took $(($duration / 60))m$(($duration % 60))s."
@@ -294,7 +290,8 @@ _upload_demultiplex_output() {
     xargs -n1 -I{} mv {} /tmp <<< $fastqs
 
     # upload rest of files
-    find "/home/dnanexus/out/fastqFolder/" -type f | xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} analysis_folder"
+    find "/home/dnanexus/out/fastqFolder/" -type f | xargs -P ${THREADS} -n1 -I{} bash -c \
+        "_upload_single_file {} analysis_folder"
 
     duration=$SECONDS
     echo "Uploading took $(($duration / 60))m$(($duration % 60))s."
@@ -359,15 +356,24 @@ _scatter() {
 
     # download the sample fastqs into directory for local app
     SECONDS=0
+    echo "Finding fastqs for sample ${sample} from fastqs provided to job"
     set +x  # suppress this going to the logs as its v long
     details=$(xargs -n1 -P${THREADS} dx describe --json --verbose <<< $fastqs)
+    names=$(jq -r '.name' <<< $details)
     sample_fqs=$(jq -r "select(.name | startswith(\"${sample}_\")) | .id" <<< $details)
     set -x
+
+    if [[ -z $sample_fqs ]]; then
+        echo "ERROR: no fastqs found for sample ${sample} from provided fastqs:"
+        sed 's/ /\n/g' <<< $names  # output to separate lines for nicer log viewing
+        exit 1
+    fi
 
     echo "Total fastqs passed: $(wc -w <<< $fastqs)"
     echo "Total fastqs found for sample: $(wc -w <<< $sample_fqs)"
     echo "Sample fastqs parsed: ${sample_fqs}"
-    echo $sample_fqs | xargs -n1 -P${THREADS} -I{} sh -c "dx download --no-progress -o /home/dnanexus/fastqFolder/$sample/ {}"
+    echo $sample_fqs | xargs -n1 -P${THREADS} -I{} sh -c \
+        "dx download --no-progress -o /home/dnanexus/fastqFolder/$sample/ {}"
     
     duration=$SECONDS
     echo "Downloaded fastqs in $(($duration / 60))m$(($duration % 60))s"
@@ -387,19 +393,17 @@ _scatter() {
             --sampleOrPairIDs "$sample" \
             ${options} 2>&1 | tee /home/dnanexus/${sample}_scatter_stdout.txt
     
-        echo Analysis complete for "$sample"
+        echo Analysis complete
     } || {
-        # some form of error occured in running, dump the end of each
-        # files stdout/stderr to the logs for debugging and exit
+        # some form of error occured in running that raised non-zero exit code
         code=$?
         echo "ERROR: one or more errors occured running workflow"
         echo "Process exited with code: ${code}"
         exit 1
-       
     }
 
     # final check that workflow did successfully complete as it can continue
-    # after failing workflow steps without raising non zero exit code
+    # after failing workflow steps without raising non-zero exit code
     success=$(grep "SingleWorkflowRunnerActor workflow finished with status 'Succeeded'" \
         /home/dnanexus/${sample}_scatter_stdout.txt)
 
@@ -448,6 +452,16 @@ _gather() {
 
 
 main() {
+    : '''
+    Main entry point for the app, general outline of behaviour:
+    
+    - download and unpack run data and TSO500 resources zip
+    - run demultiplexing and upload output
+    - call _scatter function to run sub job of analysis per sample
+    - download all outputs from _scatter jobs
+    - call _gather function locally to generate final results
+    - upload output from _gather
+    '''
     # control how many operations to open in parallel for download / upload
     THREADS=$(nproc --all)
 
