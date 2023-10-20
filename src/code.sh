@@ -86,22 +86,12 @@ _get_scatter_job_outputs() {
     echo "Downloading scatter job output"
 
     set +x
-    # output_path=$(dx describe --json "$DX_JOB_ID" | jq -r '.folder')
     # files from sub jobs will be in the container- project context of the
     # current job ($DX_WORKSPAce-id) => search here for  all the files
     scatter_files=$(dx find data --json --verbose --path "$DX_WORKSPACE_ID:/analysis")
 
-    # filter down files in job output folder to ensure they're from one of
-    # our scatter jobs that just ran (i.e. remove any demultiplexing output)
-    # all_job_ids=$(paste -sd "|" job_ids)
-    # scatter_files=$(jq "map(select(.describe.createdBy.job | test(\"$all_job_ids\")))" <<< $scatter_files)
-
     # turn describe output into id:/path/to/file to download with dir structure
     files=$(jq -r '.[] | .id + ":" + .describe.folder + "/" + .describe.name'  <<< $scatter_files)
-
-    # remove the beginning of the remote path (i.e. what was set for the app output)
-    # to just leave the path we had in the scatter job for the output
-    # files=$(awk '{gsub("/(.*?)analysis/", ""); print}' <<< $files)
 
     # build aggregated directory structure and download all files
     cmds=$(for f in  $files; do \
