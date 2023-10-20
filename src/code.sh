@@ -86,6 +86,7 @@ _get_scatter_job_outputs() {
     echo "Downloading scatter job output"
 
     set +x
+
     # files from sub jobs will be in the container- project context of the
     # current job ($DX_WORKSPAce-id) => search here for  all the files
     scatter_files=$(dx find data --json --verbose --path "$DX_WORKSPACE_ID:/analysis")
@@ -152,10 +153,12 @@ _calculate_total_fq_size() {
     Calculate total fastq size per sample, used to dump into logs
     to give an indication of how long sub jobs will take
     '''
-    local fastqs=$1
+    echo "Calculating total fastq sizes"
     set +x
-    sizes=$(echo $fastqs \
-        | jq -r '.[] | [.name,.size] | @tsv' \
+    local fastqs=$1
+    describe=$(xargs -P16 -n1 dx describe --json <<< $fastqs)
+    sizes=$(echo $describe \
+        | jq -r '[.name,.size] | @tsv' \
         | sed  -E 's/_S[0-9]+_L00[0-9]{1}_R[12]_[0-9]+\.fastq\.gz//g' \
         | awk '{ sum[$1] += $2 } END { for (i in sum) printf "\t%s %.2fGB\n", i, sum[i]/1024/1024/1024 }' \
         | sort -k2 -n)
