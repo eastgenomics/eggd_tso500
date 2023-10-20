@@ -85,29 +85,32 @@ _get_scatter_job_outputs() {
     SECONDS=0
     echo "Downloading scatter job output"
 
-    # set +x
-    output_path=$(dx describe --json "$DX_JOB_ID" | jq -r '.folder')
-    scatter_files=$(dx find data --json --verbose --path "$output_path")
+    set +x
+    # output_path=$(dx describe --json "$DX_JOB_ID" | jq -r '.folder')
+    # files from sub jobs will be in the container- project context of the
+    # current job ($DX_WORKSPAce-id) => search here for  all the files
+    scatter_files=$(dx find data --json --verbose --path "$DX_WORKSPACE_ID:/analysis")
 
-    # filter down files in job output folder to ensure they're from
-    # one of our scatter jobs that just ran
-    job_ids=$(paste -sd "|" job_ids)
-    scatter_files=$(jq "map(select(.describe.createdBy.job | test(\"$job_ids\")))" <<< $scatter_files)
+    # filter down files in job output folder to ensure they're from one of
+    # our scatter jobs that just ran (i.e. remove any demultiplexing output)
+    # all_job_ids=$(paste -sd "|" job_ids)
+    # scatter_files=$(jq "map(select(.describe.createdBy.job | test(\"$all_job_ids\")))" <<< $scatter_files)
 
     # turn describe output into id:/path/to/file to download with dir structure
     files=$(jq -r '.[] | .id + ":" + .describe.folder + "/" + .describe.name'  <<< $scatter_files)
 
     # remove the beginning of the remote path (i.e. what was set for the app output)
     # to just leave the path we had in the scatter job for the output
-    files=$(awk '{gsub("/(.*?)analysis/", ""); print}' <<< $files)
-    set -x
+    # files=$(awk '{gsub("/(.*?)analysis/", ""); print}' <<< $files)
 
     # build aggregated directory structure and download all files
     cmds=$(for f in  $files; do \
         id=${f%:*}; path=${f##*:}; dir=$(dirname "$path"); \
-        echo "'mkdir -p out/analysis/$dir && dx download --no-progress $id -o out/analysis/$path'"; done)
+        echo "'mkdir -p out/$dir && dx download --no-progress $id -o out/$path'"; done)
 
     echo $cmds | xargs -n1 -P${THREADS} bash -c
+
+    set -x
 
     total=$(du -sh /home/dnanexus/out/analysis/ | cut -f1)
     duration=$SECONDS
@@ -176,15 +179,14 @@ _upload_scatter_output() {
     
     mv /home/dnanexus/out/analysis/${sample}_output/cromwell-executions/ /tmp/
 
-    mv /home/dnanexus/out/logs/logs/${sample}_scatter_stdout.txt \
-        /home/dnanexus/out/analysis/${sample}_output/
-
     # tar up all the logs, stdout and stderr for faster upload
     logs=$(find out/analysis/${sample}_output/ \
         -name "*.log" -o -name "*.out" -o -name "*.stderr" -o -name "*.stdout")
     mkdir all_logs && xargs -I{} mv {} all_logs/ <<< "$logs"
     tar -czf ${sample}_scatter_logs.tar.gz all_logs
     mv ${sample}_scatter_logs.tar.gz /home/dnanexus/out/analysis/${sample}_output/
+
+    mv /home/dnanexus/${sample}_scatter_stdout.txt /home/dnanexus/out/analysis/${sample}_output/
 
     # move selected files to be distinct outputs, including bam, gVCF,
     # CombinedVariantOutput
@@ -242,9 +244,9 @@ _upload_gather_output() {
 
     # set +x  # disable writing all commands to logs uploading since there are thousands
 
-    metrics_file_id=$(dx upload -p out/analysis/Results/MetricsOutput.tsv --path "$remote_path" --brief)
-    dx-jobutil-add-output "metricsOutput" "$metrics_file_id" --file
-    mv out/analysis/Results/MetricsOutput.tsv /tmp
+    metrics_file_id=$(dx upload -p /home/dnanexus/out/Results/Results/MetricsOutput.tsv --brief)
+    dx-jobutil-add-output "metricsOutput" "$metrics_file_id" --class=file
+    mv /home/dnanexus/out/Results/Results/MetricsOutput.tsv /tmp
 
     # upload rest of files
     find "/home/dnanexus/out/Results" -type f | xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} analysis_folder"
@@ -362,7 +364,9 @@ _scatter() {
     sample_fqs=$(jq -r "select(.name | startswith(\"${sample}_\")) | .id" <<< $details)
     set -x
 
-    echo "sample fastqs parsed: ${sample_fqs}"
+    echo "Total fastqs passed: $(wc -w <<< $fastqs)"
+    echo "Total fastqs found for sample: $(wc -w <<< $sample_fqs)"
+    echo "Sample fastqs parsed: ${sample_fqs}"
     echo $sample_fqs | xargs -n1 -P${THREADS} -I{} sh -c "dx download --no-progress -o /home/dnanexus/fastqFolder/$sample/ {}"
     
     duration=$SECONDS
@@ -381,23 +385,28 @@ _scatter() {
             --resourcesFolder /home/dnanexus/TSO500_ruo/TSO500_RUO_LocalApp/resources \
             --sampleSheet /home/dnanexus/SampleSheet.csv \
             --sampleOrPairIDs "$sample" \
-            ${options} 2>&1 | tee /home/dnanexus/out/logs/logs/${sample}_scatter_stdout.txt
+            ${options} 2>&1 | tee /home/dnanexus/${sample}_scatter_stdout.txt
     
         echo Analysis complete for "$sample"
     } || {
         # some form of error occured in running, dump the end of each
         # files stdout/stderr to the logs for debugging and exit
         code=$?
-        printf "ERROR: one or more errors occured during per sample scatter jobs"
-        # printf "Process exited with code: ${code}"
-        # printf "Recent logs of each sample analysis:\n \n"
-        # for sample in $(echo "$sample_list"); do
-        #     printf "${sample} logs from ${sample}_stdout.txt"
-        #     tail -n20 "${sample}_stdout.txt"
-        #     printf "\n \n"s
-        #     exit 1
-        # done
+        echo "ERROR: one or more errors occured running workflow"
+        echo "Process exited with code: ${code}"
+        exit 1
+       
     }
+
+    # final check that workflow did successfully complete as it can continue
+    # after failing workflow steps without raising non zero exit code
+    success=$(grep "SingleWorkflowRunnerActor workflow finished with status 'Succeeded'" \
+        /home/dnanexus/${sample}_scatter_stdout.txt)
+
+    if [[ -z "$success" ]]; then
+        echo "All workflow steps did not successfully complete, exiting now"
+        exit 1
+    fi
 
     duration="$SECONDS"
     echo "Scatter job complete for ${sample} in $(($duration / 60))m$(($duration % 60))s"
