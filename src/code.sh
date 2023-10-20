@@ -152,6 +152,14 @@ _calculate_total_fq_size() {
     : '''
     Calculate total fastq size per sample, used to dump into logs
     to give an indication of how long sub jobs will take
+
+    Will output something like:
+
+        125635958-23277S0009-23TSOD62-8471 1.14GB
+        125636529-23277S0023-23TSOD62-8471 1.22GB
+        ...
+        125636099-23277S0012-23TSOD62-8471 3.22GB
+	    125635945-23271S0014-23TSOD62-8471 3.27GB
     '''
     echo "Calculating total fastq sizes"
     set +x
@@ -172,12 +180,11 @@ _upload_scatter_output() {
     : '''
     Upload the per sample output files in a scatter job
 
-    To speed up the upload, logs and stdout/stderr files are combined
-    into a single tar file and all cromwell logs in cromwell-executions/
-    are also combined into a single tar.
+    To speed up the upload, logs and stdout/stderr files and  all cromwell
+    logs in cromwell-executions/ are also combined into a tar files.
 
     To generate distinct output fields for the app for result files, the bam
-    and index, gVCF and CombinedVariantOutput are first uploading to individual
+    and index, gVCF and CombinedVariantOutput are first uploaded to individual
     output fields, then the rest of files are uploaded in parallel.
     '''
     SECONDS=0
@@ -234,7 +241,8 @@ _upload_scatter_output() {
 
 _upload_gather_output() {
     : '''
-    Upload all data in /home/dnanexus/out/Results
+    Upload the output files from the final _gather step,
+    these will all be in /home/dnanexus/out/Results
     '''
     echo "Total files to upload: $(find /home/dnanexus/out/Results -type f | wc -l)"
     SECONDS=0
@@ -250,8 +258,6 @@ _upload_gather_output() {
     done < job_ids
 
     export -f _upload_single_file
-
-    # set +x  # disable writing all commands to logs uploading since there are thousands
 
     # tar up all cromwell logs for faster upload
     tar -I pigz -cf /home/dnanexus/out/Results/gather_cromwell_executions.tar.gz \
@@ -287,20 +293,20 @@ _upload_gather_output() {
 
     duration=$SECONDS
     echo "Uploading took $(($duration / 60))m$(($duration % 60))s."
-    # set -x
 }
 
 
 _upload_single_file(){
   : '''
-  Uploads single file with dx upload and associates uploaded file ID to output spec
+  Uploads single file with dx upload and associates uploaded
+  file ID to specified output field
 
   Arguments
   ---------
     1 : str
         path and file to upload
     2 : str
-        app output field to set the uploaded file to
+        app output field to link the uploaded file to
   '''
   local file=$1
   local field=$2
