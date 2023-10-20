@@ -271,7 +271,7 @@ _upload_gather_output() {
         -name "*.stderr" -o \
         -name "*.stdout" -o \
         -name "*script*" -o \
-        -name "dsdm.json" -o \
+        -name "*dsdm.json" -o \
         -name "rc" -o \
         -name "receipt" -o \
         -name "*Log*.txt" -o \
@@ -280,7 +280,7 @@ _upload_gather_output() {
 
     mkdir all_logs && xargs -I{} mv {} all_logs/ <<< "$logs"
     tar -czf gather_logs.tar.gz all_logs
-    mv gather_logs.tar.gz /home/dnanexus/Results/
+    mv gather_logs.tar.gz /home/dnanexus/out/Results/
 
     # upload final MetricsOutput.tsv as distinct output field
     metrics_file_id=$(dx upload -p /home/dnanexus/out/Results/Results/MetricsOutput.tsv --brief)
