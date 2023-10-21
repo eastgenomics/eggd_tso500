@@ -27,47 +27,21 @@ _get_tso_resources() {
 
 _get_input_files() {
     : '''
-    Download all input files (either fastQs or tar files from dx-streaming-upload)
+    Download all input tar files
+
+    Expect input files to be  tars of the run data (i.e. bcl files) =>
+    download the runfolder input, decompress and save in directory 'runfolder'
     '''
     SECONDS=0
-    echo "Downloading input files"
+    echo "Downloading tar files"
+    
+    # drop the $dnanexus_link from the file IDs
+    file_ids=$(grep -Po  "file-[\d\w]+" <<< "${input_files[@]}")
 
-    if [ "$isFastQ" = true ]; then
-        echo "This analysis is starting from FastQ inputs"
+    echo "$file_ids" | xargs -P ${THREADS} -n1 -I{} sh -c \
+        "dx cat {} | tar -I pigz -xf - --no-same-owner --absolute-names -C /home/dnanexus/runfolder"
 
-        # drop the $dnanexus_link from the file IDs
-        file_ids=$(grep -Po  "file-[\d\w]+" <<< "${input_files[@]}")
-
-        echo "$file_ids" | xargs -P ${THREADS} -n1 -I{} \
-            dx download {} --no-progress -o /home/dnanexus/out/fastqFolder/
-        
-        total=$(du -sh /home/dnanexus/out/fastqFolder/ | cut -f1)
-        
-        # app requires the fastq files to be present in individual sample folders
-        set +x  # disable set to limit dumping 4 extra lines per file into logs
-        files=$(find /home/dnanexus/out/fastqFolder/ -name "*fastq.gz" -printf "%f\n")
-        for fastq_file in $files; do 
-            # FastQ files expected  in standard naming format i.e. SampleID_S6_L002_R2_001.fastq.gz
-            # Substitution below transforms SampleID_S6_L002_R2_001.fastq.gz into SampleID
-            samplename=$(echo $fastq_file | sed 's/_S[0-9]*_L[0-9]*_R[0-9]*_001.fastq.gz//')
-            sample_dir="/home/dnanexus/out/fastqFolder/${samplename}/"
-            mkdir -p "$sample_dir"
-            mv "/home/dnanexus/out/fastqFolder/${fastq_file}"  "$sample_dir"
-        done
-        set -x
-    else
-        # If the analysis input is not FASTQs expect tar archive(s) of bcl files =>
-        # download the runfolder input, decompress and save in directory 'runfolder'
-        echo " Downloading tar files"
-        
-        # drop the $dnanexus_link from the file IDs
-        file_ids=$(grep -Po  "file-[\d\w]+" <<< "${input_files[@]}")
-
-        echo "$file_ids" | xargs -P ${THREADS} -n1 -I{} sh -c \
-            "dx cat {} | tar -I pigz -xf - --no-same-owner --absolute-names -C /home/dnanexus/runfolder"
-
-        total=$(du -sh /home/dnanexus/runfolder | cut -f1)
-    fi
+    total=$(du -sh /home/dnanexus/runfolder | cut -f1)
 
     duration=$SECONDS
     echo "Downloaded $(wc -w <<< ${file_ids}) files (${total}) in $(($duration / 60))m$(($duration % 60))s"
@@ -131,19 +105,48 @@ _get_samplesheet() {
 }
 
 
-_parse_sample_names() {
+_parse_samplesheet() {
     : '''
-    Parse the sample names from the samplesheet, and optionally limit analysis to n
-    number of samples if -in_samples specified
+    Parse the sample names from the samplesheet into variable "sample_list"
+
+    If specified, can also optionally:
+        - exclude specified samples (-iexclude_samples)
+        - filter samplesheet to specific samples (-iinclude_samples)
+        - limit samplesheet to first n samples (-in_samples)
     '''
     # parse list of sample names from samplesheet
-    sample_list=$(cat runfolder/SampleSheet.csv | awk '/Sample_ID/{ y=1; next }y'  | cut -d, -f1)
+    samplesheet_header=$(sed -n '1,/Sample_ID/ p' runfolder/SampleSheet.csv)
+    sample_rows=$(sed -e '1,/Sample_ID/ d' runfolder/SampleSheet.csv)
+    sample_list=$(cut -d, -f1 <<< "$sample_rows")
+    # sample_list=$(cat runfolder/SampleSheet.csv | awk '/Sample_ID/{ y=1; next }y'  | cut -d, -f1)
     echo "Samples parsed from samplesheet: ${sample_list}"
 
     if [[ "$n_samples" ]]; then
         echo "Limiting analysis to ${n_samples} samples"
-        sample_list=$(sed '2p;d' <<< "${sample_list}")
+        sample_rows=$(sed "2,${n_samples}p;d" <<< "${sample_rows}")
         echo "Samples to run analysis for: ${sample_list}"
+    fi
+
+    if [[ "$include_samples" ]]; then
+        # retaining rows containing only those specified for given samples
+        include=$(sed 's/,/|/g' <<< "$include_samples")
+        sample_rows=$(awk '/'"$include"'/ {print $1}' <<< "{$sample_rows}")
+    fi
+
+    if [[ "$exclude_samples" ]]; then
+        # exxclude rows containing only those specified for given samples
+        exclude=$(sed 's/,/|/g' <<< "$exclude_samples")
+        sample_rows=$(awk -v exclude="$exclude" '$1 ~ /^include/' <<< "$exclude")
+        sample_rows=$(awk '!/'"$exclude"'/ {print $1}' <<< "{$sample_rows}")
+    fi
+
+    if [[ $n_samples ]] | [[ $include_samples ]] | [[ $exclude_samples ]]; then
+        # write out new samplesheet with specified rows
+        mv runfolder/SampleSheet.csv runfolder/originalSampleSheet.csv
+        echo "$samplesheet_header" >> runfolder/SampleSheet.csv
+        echo "$sample_rows" >> runfolder/SampleSheet.csv
+
+        echo -e "New samplesheet:\n$(cat runfolder/SampleSheet.csv)"
     fi
 }
 
@@ -194,7 +197,7 @@ _upload_scatter_output() {
     # tar up all cromwell logs for faster upload
     tar -I pigz -cf /home/dnanexus/out/analysis/${sample}_output/${sample}_cromwell_executions.tar.gz \
         /home/dnanexus/out/analysis/${sample}_output/cromwell-executions
-    mv /home/dnanexus/out/analysis/${sample}_output/cromwell-executions/ /tmp/
+    rm -rf /home/dnanexus/out/analysis/${sample}_output/cromwell-executions/
 
     # tar up all the logs, stdout and stderr for faster upload
     logs=$(find out/analysis/${sample}_output/ \
@@ -262,7 +265,7 @@ _upload_gather_output() {
     # tar up all cromwell logs for faster upload
     tar -I pigz -cf /home/dnanexus/out/Results/gather_cromwell_executions.tar.gz \
         /home/dnanexus/out/Results/cromwell-executions
-    mv /home/dnanexus/out/Results/cromwell-executions /tmp/
+    rm -rf /home/dnanexus/out/Results/cromwell-executions
 
     # tar up all the logs, stdout and stderr for faster upload
     logs=$(find out/Results/ \
@@ -332,6 +335,11 @@ _upload_demultiplex_output() {
     fastqs=$(find "/home/dnanexus/out/fastqFolder" -type f -name "*fastq.gz")
     xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} fastqs" <<< "$fastqs"
     xargs -n1 -I{} mv {} /tmp <<< $fastqs
+
+    # tar up all cromwell logs for faster upload
+    tar -I pigz -cf /home/dnanexus/out/fastqFolder/demultiplex_cromwell_executions.tar.gz \
+        /home/dnanexus/out/fastqFolder/cromwell-executions
+    rm -rf /home/dnanexus/out/fastqFolder/cromwell-executions
 
     # upload rest of files
     find "/home/dnanexus/out/fastqFolder/" -type f | xargs -P ${THREADS} -n1 -I{} bash -c \
@@ -522,28 +530,20 @@ main() {
     _get_tso_resources
 
     # download samplesheet if provided or get from run data and parse out sample names
-    _get_samplesheet && _parse_sample_names
+    _get_samplesheet && _parse_samplesheet
 
     echo "Starting analysis"
 
-    if [[ "$isFastQ" == false ]]; then
-        # not starting from fastqs => run demultiplexing
-        _demultiplex
+    _demultiplex
+    _upload_demultiplex_output
 
-        _upload_demultiplex_output
-    fi
 
     if [[ "$demultiplexOnly" == false ]]; then
         # start up analysis, running one instance of the local app per sample in parallel
 
-        if [ "$isFastQ" == true ]; then
-            # get the file IDs of the fastqs provided as input
-            fastq_ids=$(grep -Po  "file-[\d\w]+" <<< "${input_files[@]}")
-        else
-            # get the file IDs of the fastqs we have just uploaded from demultiplexing
-            fastq_ids=$(cat job_output.json | jq -r '.fastqs[][]')
-        fi
-        
+        # get the file IDs of the fastqs we have just uploaded from demultiplexing
+        fastq_ids=$(cat job_output.json | jq -r '.fastqs[][]')
+
         # Adds additional non-specified optional arguments to the command
         options=""
         if [ "$analysis_options" ]; then options+=" ${analysis_options}"; fi 
@@ -583,6 +583,14 @@ main() {
 
         # upload output files from gather step
         _upload_gather_output
+
+        if [[ "$upload_demultiplex_output" == false ]]; then
+            # option specified to not upload demultiplex output =>
+            # delete it from the parent container to not go into
+            # the output project
+            echo "Removing demultiplexing output"
+            dx rm -rf /fastqFolder
+        fi
     fi
 
     # check usage to monitor usage of instance storage
