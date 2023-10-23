@@ -140,7 +140,7 @@ _parse_samplesheet() {
         sample_rows=$(awk '!/'"$exclude"'/ {print $1}' <<< "{$sample_rows}")
     fi
 
-    if [[ $n_samples ]] | [[ $include_samples ]] | [[ $exclude_samples ]]; then
+    if [[ $n_samples ]] || [[ $include_samples ]] || [[ $exclude_samples ]]; then
         # write out new samplesheet with specified rows
         mv runfolder/SampleSheet.csv runfolder/originalSampleSheet.csv
         echo "$samplesheet_header" >> runfolder/SampleSheet.csv
