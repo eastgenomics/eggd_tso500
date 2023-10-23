@@ -115,11 +115,29 @@ _parse_samplesheet() {
         - limit samplesheet to first n samples (-in_samples)
     '''
     # parse list of sample names from samplesheet
+    sample_rows=$(sed -e '1,/Sample_ID/ d' runfolder/SampleSheet.csv)
+    sample_list=$(cut -d, -f1 <<< "$sample_rows")
+    echo "Samples parsed from samplesheet: ${sample_list}"
+}
+
+
+_modify_samplesheet() {
+    : '''
+    If specified, will modify the samplesheet in the following way to change
+    what samples analysis is run for:
+        - exclude specified samples (-iexclude_samples)
+        - filter samplesheet to specific samples (-iinclude_samples)
+        - limit samplesheet to first n samples (-in_samples)
+    
+    This will only be called after demultiplexing to not result in large
+    undertermined fastqs.
+    '''
+    echo "Modifying samplesheet"
+    # parse original rows from samplesheet
     samplesheet_header=$(sed -n '1,/Sample_ID/ p' runfolder/SampleSheet.csv)
     sample_rows=$(sed -e '1,/Sample_ID/ d' runfolder/SampleSheet.csv)
     sample_list=$(cut -d, -f1 <<< "$sample_rows")
-    # sample_list=$(cat runfolder/SampleSheet.csv | awk '/Sample_ID/{ y=1; next }y'  | cut -d, -f1)
-    echo "Samples parsed from samplesheet: ${sample_list}"
+    echo "Original samples parsed from samplesheet: ${sample_list}"
 
     if [[ "$n_samples" ]]; then
         echo "Limiting analysis to ${n_samples} samples"
@@ -129,25 +147,25 @@ _parse_samplesheet() {
 
     if [[ "$include_samples" ]]; then
         # retaining rows containing only those specified for given samples
+        echo -e "-iinclude_samples specified:\n\t${include_samples}"
         include=$(sed 's/,/|/g' <<< "$include_samples")
         sample_rows=$(awk '/'"$include"'/ {print $1}' <<< "{$sample_rows}")
     fi
 
     if [[ "$exclude_samples" ]]; then
-        # exxclude rows containing only those specified for given samples
+        # exclude rows containing only those specified for given samples
+        echo -e "-iexclude_samples specified:\n\t${exclude_samples}"
         exclude=$(sed 's/,/|/g' <<< "$exclude_samples")
         sample_rows=$(awk -v exclude="$exclude" '$1 ~ /^include/' <<< "$exclude")
         sample_rows=$(awk '!/'"$exclude"'/ {print $1}' <<< "{$sample_rows}")
     fi
 
-    if [[ $n_samples ]] || [[ $include_samples ]] || [[ $exclude_samples ]]; then
-        # write out new samplesheet with specified rows
-        mv runfolder/SampleSheet.csv runfolder/originalSampleSheet.csv
-        echo "$samplesheet_header" >> runfolder/SampleSheet.csv
-        echo "$sample_rows" >> runfolder/SampleSheet.csv
+    # write out new samplesheet with specified rows
+    mv runfolder/SampleSheet.csv runfolder/originalSampleSheet.csv
+    echo "$samplesheet_header" >> runfolder/SampleSheet.csv
+    echo "$sample_rows" >> runfolder/SampleSheet.csv
 
-        echo -e "New samplesheet:\n$(cat runfolder/SampleSheet.csv)"
-    fi
+    sleep 1 && echo -e "New samplesheet:\n$(cat runfolder/SampleSheet.csv)" && sleep 1
 }
 
 
@@ -537,6 +555,11 @@ main() {
     _demultiplex
     _upload_demultiplex_output
 
+    if [[ $n_samples ]] || [[ $include_samples ]] || [[ $exclude_samples ]]; then
+        # specified a subset of samples to run analysis for =>
+        # modify the samplesheet accordingly
+        _modify_samplesheet
+    fi
 
     if [[ "$demultiplexOnly" == false ]]; then
         # start up analysis, running one instance of the local app per sample in parallel
@@ -585,9 +608,8 @@ main() {
         _upload_gather_output
 
         if [[ "$upload_demultiplex_output" == false ]]; then
-            # option specified to not upload demultiplex output =>
-            # delete it from the parent container to not go into
-            # the output project
+            # option specified to not upload demultiplex output => delete it
+            # from the parent container to not go into the output project
             echo "Removing demultiplexing output"
             dx rm -rf /fastqFolder
         fi
