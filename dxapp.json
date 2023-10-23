@@ -33,9 +33,9 @@
     {
       "name": "input_files",
       "label": "input files",
-      "help": "tar files of runfolder or array of fastqs",
+      "help": "tar files of runfolder containing raw sequencing data",
       "class": "array:file",
-      "patterns": ["*.tar.gz", "*.fastq.gz"],
+      "patterns": ["*.tar.gz"],
       "optional": false,
       "group": "files"
     },
@@ -61,31 +61,47 @@
       "label": "scatter instance",
       "help": "instance type to use for scatter sub jobs",
       "class": "string",
-      "default": "mem1_ssd1_v2_x16",
+      "default": "mem1_ssd1_v2_x36",
       "group": "options"
     },
     {
       "name": "isNovaSeq",
       "label": "isNovaSeq",
-      "help": "(Optional) flag to specify NovaSeq data. (default = true)",
+      "help": "(Optional) flag to specify NovaSeq data (default: true)",
       "class": "boolean",
       "default": true,
       "group": "options"
     },
     {
-      "name": "isFastQ",
-      "label": "isFastQ",
-      "help": "(Optional) flag to run from fastq input",
+      "name": "upload_demultiplex_output",
+      "label": "upload demultiplex output",
+      "help": "(Optional) control if to upload output from demultiplexing",
+      "class": "boolean",
+      "default": true,
+      "group": "options"
+    },
+    {
+      "name": "demultiplex_only",
+      "label": "demultiplex Only",
+      "help": "(Optional) flag to demultiplex a runfolder and upload the fastq files",
       "class": "boolean",
       "default": false,
       "group": "options"
     },
     {
-      "name": "demultiplexOnly",
-      "label": "demultiplex Only",
-      "help": "(Optional) flag to demultiplex a runfolder and upload the fastq files",
-      "class": "boolean",
-      "default": false,
+      "name": "include_samples",
+      "label": "include samples",
+      "help": "comma separated string of samples to run analysis on (i.e. subset of samplesheet)",
+      "class": "string",
+      "optional": true,
+      "group": "options"
+    },
+    {
+      "name": "exclude_samples",
+      "label": "exclude samples",
+      "help": "comma separated string of samples to NOT run analysis on",
+      "class": "string",
+      "optional": true,
       "group": "options"
     },
     {
