@@ -145,19 +145,35 @@ _modify_samplesheet() {
         echo "Samples to run analysis for: ${sample_list}"
     fi
 
+    if [[ "$include_samples" ]] || [[ "$exclude_samples" ]]; then
+        # first ensure any samples specified to include or exclude are
+        # a valid sample name from our samplesheet
+        samples=$(sed -e 's/^,\|,$//' <<< "${include_samples},${exclude_samples}")
+
+        invalid=$(while read -d',' -r line; do \
+            [[ "$sample_list" =~ $line ]] || echo "${line} "; done <<< "${samples},")
+
+        if [[ "${invalid}" ]]; then
+            echo "One or more samplenames provided to include/exclude are invalid: ${invalid}"
+            exit 1
+        fi
+    fi
+
     if [[ "$include_samples" ]]; then
         # retaining rows containing only those specified for given samples
-        echo -e "-iinclude_samples specified:\n\t${include_samples}"
+        echo "-iinclude_samples specified: ${include_samples}"
+
+
+
         include=$(sed 's/,/|/g' <<< "$include_samples")
-        sample_rows=$(awk '/'"$include"'/ {print $1}' <<< "{$sample_rows}")
+        sample_rows=$(awk '/'"$include"'/ {print $1}' <<< "$sample_rows")
     fi
 
     if [[ "$exclude_samples" ]]; then
         # exclude rows containing only those specified for given samples
-        echo -e "-iexclude_samples specified:\n\t${exclude_samples}"
+        echo -e "-iexclude_samples specified: ${exclude_samples}"
         exclude=$(sed 's/,/|/g' <<< "$exclude_samples")
-        sample_rows=$(awk -v exclude="$exclude" '$1 ~ /^include/' <<< "$exclude")
-        sample_rows=$(awk '!/'"$exclude"'/ {print $1}' <<< "{$sample_rows}")
+        sample_rows=$(awk '!/'"$exclude"'/ {print $1}' <<< "$sample_rows")
     fi
 
     # write out new samplesheet with specified rows
@@ -194,6 +210,27 @@ _calculate_total_fq_size() {
     set -x
     
     echo -e "Total fastq sizes per sample:\n${sizes}"
+}
+
+
+_upload_single_file(){
+  : '''
+  Uploads single file with dx upload and associates uploaded
+  file ID to specified output field
+
+  Arguments
+  ---------
+    1 : str
+        path and file to upload
+    2 : str
+        app output field to link the uploaded file to
+  '''
+  local file=$1
+  local field=$2
+  local remote_path=$(sed s'/\/home\/dnanexus\/out\///' <<< "$file")
+
+  file_id=$(dx upload "$file" --path "$remote_path" --parents --brief)
+  dx-jobutil-add-output "$field" "$file_id" --array
 }
 
 
@@ -314,27 +351,6 @@ _upload_gather_output() {
 
     duration=$SECONDS
     echo "Uploading took $(($duration / 60))m$(($duration % 60))s."
-}
-
-
-_upload_single_file(){
-  : '''
-  Uploads single file with dx upload and associates uploaded
-  file ID to specified output field
-
-  Arguments
-  ---------
-    1 : str
-        path and file to upload
-    2 : str
-        app output field to link the uploaded file to
-  '''
-  local file=$1
-  local field=$2
-  local remote_path=$(sed s'/\/home\/dnanexus\/out\///' <<< "$file")
-
-  file_id=$(dx upload "$file" --path "$remote_path" --parents --brief)
-  dx-jobutil-add-output "$field" "$file_id" --array
 }
 
 
@@ -545,10 +561,14 @@ main() {
     _get_input_files
 
     # download, unpack and load TSO500 docker image & resources
-    _get_tso_resources
+    # _get_tso_resources
 
     # download samplesheet if provided or get from run data and parse out sample names
     _get_samplesheet && _parse_samplesheet
+
+    _modify_samplesheet
+
+    exit 0
 
     echo "Starting analysis"
 
