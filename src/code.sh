@@ -63,7 +63,7 @@ _get_scatter_job_outputs() {
 
     # files from sub jobs will be in the container- project context of the
     # current job ($DX_WORKSPAce-id) => search here for  all the files
-    scatter_files=$(dx find data --json --verbose --path "$DX_WORKSPACE_ID:/analysis")
+    scatter_files=$(dx find data --json --verbose --path "$DX_WORKSPACE_ID:/Analysis")
 
     # turn describe output into id:/path/to/file to download with dir structure
     files=$(jq -r '.[] | .id + ":" + .describe.folder + "/" + .describe.name'  <<< $scatter_files)
@@ -77,7 +77,7 @@ _get_scatter_job_outputs() {
 
     set -x
 
-    total=$(du -sh /home/dnanexus/out/analysis/ | cut -f1)
+    total=$(du -sh /home/dnanexus/out/Analysis/ | cut -f1)
     duration=$SECONDS
     echo "Downloaded $(wc -w <<< ${files}) files (${total}) in $(($duration / 60))m$(($duration % 60))s"
 }
@@ -133,11 +133,14 @@ _modify_samplesheet() {
         - filter samplesheet to specific samples (-iinclude_samples)
         - limit samplesheet to first n samples (-in_samples)
     
-    This will only be called after demultiplexing to not result in large
-    undertermined fastqs.
+    The modified samplesheet will be uploaded to the output
+    folder as "modified_SampleSheet.csv" to be able to pass
+    the file ID to the scatter job.
 
-    The modified samplesheet will be uploaded to the output folder as
-    "modified_SampleSheet.csv" to be able to pass the file ID to the scatter job.
+    This modifies the following global variables:
+
+        - samplesheet : str of file ID of samplesheet
+        - sample_list : str of all sample names parsed from samplesheet
     '''
     echo "Modifying samplesheet"
     # parse original rows from samplesheet
@@ -171,6 +174,7 @@ _modify_samplesheet() {
         echo "-iinclude_samples specified: ${include_samples}"
         include=$(sed 's/,/|/g' <<< "$include_samples")
         sample_rows=$(awk '/'"$include"'/ {print $1}' <<< "$sample_rows")
+        sample_list=$(cut -d, -f1 <<< "$sample_rows")
     fi
 
     if [[ "$exclude_samples" ]]; then
@@ -178,6 +182,7 @@ _modify_samplesheet() {
         echo -e "-iexclude_samples specified: ${exclude_samples}"
         exclude=$(sed 's/,/|/g' <<< "$exclude_samples")
         sample_rows=$(awk '!/'"$exclude"'/ {print $1}' <<< "$sample_rows")
+        sample_list=$(cut -d, -f1 <<< "$sample_rows")
     fi
 
     # write out new samplesheet with specified rows
@@ -257,12 +262,12 @@ _upload_scatter_output() {
     export -f _upload_single_file
 
     # tar up all cromwell logs for faster upload
-    tar -I pigz -cf /home/dnanexus/out/analysis/${sample}_output/${sample}_cromwell_executions.tar.gz \
-        /home/dnanexus/out/analysis/${sample}_output/cromwell-executions
-    rm -rf /home/dnanexus/out/analysis/${sample}_output/cromwell-executions/
+    tar -I pigz -cf /home/dnanexus/out/Analysis/${sample}_output/${sample}_cromwell_executions.tar.gz \
+        /home/dnanexus/out/Analysis/${sample}_output/cromwell-executions
+    rm -rf /home/dnanexus/out/Analysis/${sample}_output/cromwell-executions/
 
     # tar up all the logs, stdout and stderr for faster upload
-    logs=$(find out/analysis/${sample}_output/ \
+    logs=$(find out/Analysis/${sample}_output/ \
         -name "*.log" -o \
         -name "*.out" -o \
         -name "*.stderr" -o \
@@ -270,27 +275,27 @@ _upload_scatter_output() {
         -name "receipt")
     mkdir all_logs && xargs -I{} mv {} all_logs/ <<< "$logs"
     tar -czf ${sample}_scatter_logs.tar.gz all_logs
-    mv ${sample}_scatter_logs.tar.gz /home/dnanexus/out/analysis/${sample}_output/
+    mv ${sample}_scatter_logs.tar.gz /home/dnanexus/out/Analysis/${sample}_output/
 
-    mv /home/dnanexus/${sample}_scatter_stdout.txt /home/dnanexus/out/analysis/${sample}_output/
+    mv /home/dnanexus/${sample}_scatter_stdout.txt /home/dnanexus/out/Analysis/${sample}_output/
 
     # move selected files to be distinct outputs, including bam, index, gVCF and CombinedVariantOutput
-    bams=$(find "/home/dnanexus/out/analysis/${sample}_output/Logs_Intermediates/StitchedRealigned/" \
+    bams=$(find "/home/dnanexus/out/Analysis/${sample}_output/Logs_Intermediates/StitchedRealigned/" \
         -type f -name "*.bam")
     xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} bams" <<< "$bams"
     xargs -n1 -I{} mv {} /tmp <<< $bams
 
-    index=$(find "/home/dnanexus/out/analysis/${sample}_output/Logs_Intermediates/StitchedRealigned/" \
+    index=$(find "/home/dnanexus/out/Analysis/${sample}_output/Logs_Intermediates/StitchedRealigned/" \
         -type f -name "*.bai")
     xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} bam_index" <<< "$index"
     xargs -n1 -I{} mv {} /tmp <<< $index
 
-    gvcf=$(find "/home/dnanexus/out/analysis/${sample}_output/Results/${sample}/" \
+    gvcf=$(find "/home/dnanexus/out/Analysis/${sample}_output/Results/${sample}/" \
         -type f -name "*.genome.vcf")
     xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} gvcfs" <<< "$gvcf"
     xargs -n1 -I{} mv {} /tmp <<< $gvcf
 
-    cvo=$(find "/home/dnanexus/out/analysis/${sample}_output/Results/${sample}/" \
+    cvo=$(find "/home/dnanexus/out/Analysis/${sample}_output/Results/${sample}/" \
         -type f -name "*CombinedVariantOutput.tsv")
     xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} cvo" <<< "$cvo"
     xargs -n1 -I{} mv {} /tmp <<< $cvo
@@ -396,13 +401,22 @@ _demultiplex() {
     Run demultiplexing via bclconvert in the TSO500 local app
     '''
     echo "Beginning demultiplexing"
+
+    if [[ -f runfolder/modified_SampleSheet.csv ]]; then
+        # include/exclude specified => use samplesheet that
+        # we have modified
+        samplesheet_path="runfolder/modified_SampleSheet.csv"
+    else
+        samplesheet_path="runfolder/SampleSheet.csv"
+    fi
+
     SECONDS=0
 
     /usr/bin/time -v sudo bash TSO500_ruo/TSO500_RUO_LocalApp/TruSight_Oncology_500_RUO.sh \
         --analysisFolder /home/dnanexus/out/DemultiplexOutput/ \
         --runFolder /home/dnanexus/runfolder/ \
         --resourcesFolder /home/dnanexus/TSO500_ruo/TSO500_RUO_LocalApp/resources \
-        --sampleSheet /home/dnanexus/runfolder/SampleSheet.csv \
+        --sampleSheet /home/dnanexus/$samplesheet_path \
         --demultiplexOnly \
         --isNovaSeq
     
@@ -443,7 +457,7 @@ _scatter() {
              /home/dnanexus/TSO500_ruo \
              /home/dnanexus/DemultiplexOutput/$sample \
              /home/dnanexus/out/logs/logs \
-             /home/dnanexus/out/analysis
+             /home/dnanexus/out/Analysis
 
     dx download "$samplesheet" -o "SampleSheet.csv"
 
@@ -479,8 +493,8 @@ _scatter() {
         SECONDS=0
 
         sudo bash TSO500_ruo/TSO500_RUO_LocalApp/TruSight_Oncology_500_RUO.sh \
-            --analysisFolder /home/dnanexus/out/analysis/"${sample}"_output \
-            --DemultiplexOutput /home/dnanexus/DemultiplexOutput/ \
+            --analysisFolder /home/dnanexus/out/Analysis/"${sample}"_output \
+            --fastqFolder /home/dnanexus/DemultiplexOutput/ \
             --resourcesFolder /home/dnanexus/TSO500_ruo/TSO500_RUO_LocalApp/resources \
             --sampleSheet /home/dnanexus/SampleSheet.csv \
             --sampleOrPairIDs "$sample" \
@@ -518,7 +532,7 @@ _gather() {
     '''
     sample_output_dirs=""
     for sample in $sample_list; do
-        sample_output_dirs+="/home/dnanexus/out/analysis/${sample}_output "
+        sample_output_dirs+="/home/dnanexus/out/Analysis/${sample}_output "
     done
 
     if [[ -f runfolder/modified_SampleSheet.csv ]]; then
@@ -538,17 +552,18 @@ _gather() {
         --resourcesFolder /home/dnanexus/TSO500_ruo/TSO500_RUO_LocalApp/resources \
         --sampleSheet /home/dnanexus/$samplesheet_path \
         --gather /home/dnanexus/out/DemultiplexOutput/ "${sample_output_dirs}" \
-        --isNovaSeq
-    
-    duration="$SECONDS"
-    echo "Gather step completed in ${sample} in $(($duration / 60))m$(($duration % 60))s"
+        --isNovaSeq 2>&1 | tee out/Results/gather_run.log
+
+    find out/Results -type f
 
     # final check it was successful
-    if [[ $(grep -i "transitioned to failed" out/Results/gather_run.log) ]]; then
-        echo "Gather step did not complete successfully"
+    if [[ $(grep "WorkflowFailedState" out/Results/gather_run.log) ]]; then
         cat out/Results/gather_run.log
-        exit 1
+        dx-jobutil-report-error "Gather step did not complete successfully"
     fi
+
+    duration="$SECONDS"
+    echo "Gather step completed in ${sample} in $(($duration / 60))m$(($duration % 60))s"
 }
 
 
@@ -570,7 +585,7 @@ main() {
              /home/dnanexus/TSO500_ruo \
              /home/dnanexus/out/DemultiplexOutput \
              /home/dnanexus/out/logs/logs \
-             /home/dnanexus/out/analysis
+             /home/dnanexus/out/Analysis
 
     # download sample data (either tar files or fastqs)
     _get_input_files
@@ -581,18 +596,18 @@ main() {
     # download samplesheet if provided or get from run data and parse out sample names
     _get_samplesheet && _parse_samplesheet
 
-    echo "Starting analysis"
-
-    _demultiplex
-    _upload_demultiplex_output
-
     if [[ $n_samples ]] || [[ $include_samples ]] || [[ $exclude_samples ]]; then
         # specified a subset of samples to run analysis for =>
         # modify the samplesheet accordingly
         _modify_samplesheet
     fi
 
-    if [[ "$demultiplexOnly" == false ]]; then
+    echo "Starting analysis"
+
+    _demultiplex
+    _upload_demultiplex_output
+
+    if [[ "$demultiplex_only" == false ]]; then
         # start up analysis, running one instance of the local app per sample in parallel
 
         # get the file IDs of the fastqs we have just uploaded from demultiplexing
