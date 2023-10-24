@@ -333,14 +333,15 @@ _upload_gather_output() {
 
     # link output of sub scatter jobs to parent job
     while read -r job; do
-        dx-jobutil-add-output dna_bams "${job}":dna_bams --class=array:jobref
-        dx-jobutil-add-output dna_bam_index "${job}":dna_bam_index --class=array:jobref
-        dx-jobutil-add-output rna_bams "${job}":rna_bams --class=array:jobref
-        dx-jobutil-add-output rna_bam_index "${job}":rna_bam_index --class=array:jobref
-        dx-jobutil-add-output gvcfs "${job}":gvcfs --class=array:jobref
-        dx-jobutil-add-output cvo "${job}":cvo --class=array:jobref
-        dx-jobutil-add-output analysis_folder "${job}":analysis_folder --class=array:jobref
+        output_fields="dna_bams dna_bam_index rna_bams rna_bam_index gvcfs cvo analysis_folder"
+        job_output=$(dx describe --json "$job" | jq -r '.output | keys')
 
+        for output in $output_fields; do
+            if [[ "$job_output" =~ "$output" ]]; then
+                # sub job has this output field => link to parent output spec
+                dx-jobutil-add-output "$output" "${job}":"$output" --class=array:jobref
+            fi
+        done
     done < job_ids
 
     export -f _upload_single_file
@@ -409,6 +410,16 @@ _upload_demultiplex_output() {
 
     duration=$SECONDS
     echo "Uploading took $(($duration / 60))m$(($duration % 60))s."
+
+    # get the file IDs of the fastqs we have just uploaded from demultiplexing to
+    # provide to the scatter jobs
+    fastq_ids=$(cat job_output.json | jq -r '.fastqs[][]')
+
+    if [[ "$upload_demultiplex_output" == false ]]; then
+        # option specified to not upload demultiplex output => remove the job_output file
+        # so that these are removed from the jobs output spec
+        rm job_output.json
+    fi
 }
 
 
@@ -629,9 +640,6 @@ main() {
     if [[ "$demultiplex_only" == false ]]; then
         # start up analysis, running one instance of the local app per sample in parallel
 
-        # get the file IDs of the fastqs we have just uploaded from demultiplexing
-        fastq_ids=$(cat job_output.json | jq -r '.fastqs[][]')
-
         # Adds additional non-specified optional arguments to the command
         options=""
         if [ "$analysis_options" ]; then options+=" ${analysis_options}"; fi 
@@ -671,13 +679,6 @@ main() {
 
         # upload output files from gather step
         _upload_gather_output
-
-        if [[ "$upload_demultiplex_output" == false ]]; then
-            # option specified to not upload demultiplex output => delete it
-            # from the parent container to not go into the output project
-            echo "Removing demultiplexing output"
-            dx rm -rf /DemultiplexOutput
-        fi
     fi
 
     # check usage to monitor usage of instance storage
