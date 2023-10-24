@@ -280,15 +280,29 @@ _upload_scatter_output() {
     mv /home/dnanexus/${sample}_scatter_stdout.txt /home/dnanexus/out/Analysis/${sample}_output/
 
     # move selected files to be distinct outputs, including bam, index, gVCF and CombinedVariantOutput
-    bams=$(find "/home/dnanexus/out/Analysis/${sample}_output/Logs_Intermediates/StitchedRealigned/" \
+    dna_bams=$(find "/home/dnanexus/out/Analysis/${sample}_output/Logs_Intermediates/StitchedRealigned/" \
         -type f -name "*.bam")
-    xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} bams" <<< "$bams"
-    xargs -n1 -I{} mv {} /tmp <<< $bams
+    xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} dna_bams" <<< "$dna_bams"
+    xargs -n1 -I{} mv {} /tmp <<< $dna_bams
 
-    index=$(find "/home/dnanexus/out/Analysis/${sample}_output/Logs_Intermediates/StitchedRealigned/" \
+    dna_bam_index=$(find "/home/dnanexus/out/Analysis/${sample}_output/Logs_Intermediates/StitchedRealigned/" \
         -type f -name "*.bai")
-    xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} bam_index" <<< "$index"
-    xargs -n1 -I{} mv {} /tmp <<< $index
+    xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} dna_bam_index" <<< "$dna_bam_index"
+    xargs -n1 -I{} mv {} /tmp <<< $dna_bam_index
+
+    rna_bams=$(find "/home/dnanexus/out/Analysis/${sample}_output/Logs_Intermediates/RnaAlignment/" \
+        -type f -name "*.bam")
+    if [[ "$rna_bams" ]]; then
+        xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} rna_bams" <<< "$rna_bams"
+        xargs -n1 -I{} mv {} /tmp <<< $rna_bams
+    fi
+
+    rna_bam_index=$(find "/home/dnanexus/out/Analysis/${sample}_output/Logs_Intermediates/RnaAlignment/" \
+        -type f -name "*.bai")
+    if [[ "$rna_bam_index" ]]; then
+        xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} rna_bam_index" <<< "$rna_bam_index"
+        xargs -n1 -I{} mv {} /tmp <<< $rna_bam_index
+    fi
 
     gvcf=$(find "/home/dnanexus/out/Analysis/${sample}_output/Results/${sample}/" \
         -type f -name "*.genome.vcf")
@@ -319,8 +333,10 @@ _upload_gather_output() {
 
     # link output of sub scatter jobs to parent job
     while read -r job; do
-        dx-jobutil-add-output bams "${job}":bams --class=array:jobref
-        dx-jobutil-add-output bam_index "${job}":bam_index --class=array:jobref
+        dx-jobutil-add-output dna_bams "${job}":dna_bams --class=array:jobref
+        dx-jobutil-add-output dna_bam_index "${job}":dna_bam_index --class=array:jobref
+        dx-jobutil-add-output rna_bams "${job}":rna_bams --class=array:jobref
+        dx-jobutil-add-output rna_bam_index "${job}":rna_bam_index --class=array:jobref
         dx-jobutil-add-output gvcfs "${job}":gvcfs --class=array:jobref
         dx-jobutil-add-output cvo "${job}":cvo --class=array:jobref
         dx-jobutil-add-output analysis_folder "${job}":analysis_folder --class=array:jobref
@@ -552,15 +568,17 @@ _gather() {
         --resourcesFolder /home/dnanexus/TSO500_ruo/TSO500_RUO_LocalApp/resources \
         --sampleSheet /home/dnanexus/$samplesheet_path \
         --gather /home/dnanexus/out/DemultiplexOutput/ "${sample_output_dirs}" \
-        --isNovaSeq 2>&1 | tee out/Results/gather_run.log
+        --isNovaSeq 2>&1 | tee /home/dnanexus/gather_run.log
 
     find out/Results -type f
 
     # final check it was successful
-    if [[ $(grep "WorkflowFailedState" out/Results/gather_run.log) ]]; then
-        cat out/Results/gather_run.log
+    if [[ $(grep "WorkflowFailedState" gather_run.log) ]]; then
+        cat gather_run.log
         dx-jobutil-report-error "Gather step did not complete successfully"
     fi
+
+    mv gather_run.log /home/dnanexus/out/Results/gather_run.log
 
     duration="$SECONDS"
     echo "Gather step completed in ${sample} in $(($duration / 60))m$(($duration % 60))s"
@@ -585,7 +603,8 @@ main() {
              /home/dnanexus/TSO500_ruo \
              /home/dnanexus/out/DemultiplexOutput \
              /home/dnanexus/out/logs/logs \
-             /home/dnanexus/out/Analysis
+             /home/dnanexus/out/Analysis \
+             /home/dnanexus/out/Results
 
     # download sample data (either tar files or fastqs)
     _get_input_files

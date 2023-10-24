@@ -122,17 +122,31 @@
       "optional": true
     },
     {
-      "name": "bams",
-      "label": "bams",
+      "name": "dna_bams",
+      "label": "DNA bams",
       "class": "array:file",
       "help": "stitched realigned bam files",
       "optional": true
     },
     {
-      "name": "bam_index",
-      "label": "bam_index",
+      "name": "dna_bam_index",
+      "label": "DNA bam index",
       "class": "array:file",
       "help": "stitched realigned bam file index",
+      "optional": true
+    },
+    {
+      "name": "rna_bams",
+      "label": "RNA bams",
+      "class": "array:file",
+      "help": "RNA aligned bam files",
+      "optional": true
+    },
+    {
+      "name": "rna_bam_index",
+      "label": "RNA bam index",
+      "class": "array:file",
+      "help": "RNA aligned bam file index",
       "optional": true
     },
     {
