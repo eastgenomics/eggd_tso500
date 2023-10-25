@@ -1,8 +1,13 @@
 #!/bin/bash
 
+# prefixes all lines of commands written to stdout with datetime
 PS4='\000[$(date)]\011'
 export TZ=Europe/London
 set -exo pipefail
+
+# set frequency of instance usage in logs to 60 seconds
+kill $(ps aux | grep pcp-dstat | head -n1 | awk '{print $2}')
+/usr/bin/dx-dstat 60
 
 
 _get_tso_resources() {
@@ -106,7 +111,7 @@ _get_samplesheet() {
         exit 1
     fi
 }
-
+container-GZvZBp04BVyYzjbj6gfpgK9j
 
 _parse_samplesheet() {
     : '''
@@ -273,46 +278,38 @@ _upload_scatter_output() {
         -name "*.stderr" -o \
         -name "*.stdout" -o\
         -name "receipt")
+
     mkdir all_logs && xargs -I{} mv {} all_logs/ <<< "$logs"
     tar -czf ${sample}_scatter_logs.tar.gz all_logs
     mv ${sample}_scatter_logs.tar.gz /home/dnanexus/out/Analysis/${sample}_output/
-
     mv /home/dnanexus/${sample}_scatter_stdout.txt /home/dnanexus/out/Analysis/${sample}_output/
 
-    # move selected files to be distinct outputs, including bam, index, gVCF and CombinedVariantOutput
-    dna_bams=$(find "/home/dnanexus/out/Analysis/${sample}_output/Logs_Intermediates/StitchedRealigned/" \
-        -type f -name "*.bam")
-    xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} dna_bams" <<< "$dna_bams"
-    xargs -n1 -I{} mv {} /tmp <<< $dna_bams
+    # mapping of paths to search for files, file patterns and output field to attribute to
+    file_mapping=(
+        "${sample}_output/Logs_Intermediates/StitchedRealigned/ *.bam dna_bams"
+        "${sample}_output/Logs_Intermediates/StitchedRealigned/ *.bai dna_bam_index"
+        "${sample}_output/Logs_Intermediates/RnaAlignment/ *.bam rna_bams"
+        "${sample}_output/Logs_Intermediates/RnaAlignment/ *.bai rna_bam_index"
+        "${sample}_output/Logs_Intermediates/Msi/ *.msi.json msi_metrics"
+        "${sample}_output/Logs_Intermediates/Tmb/ *.tmb.json tmb_metrics"
+        # "${sample}_output/Results/${sample}/ *MergedSmallVariants.genome.vcf gvcf"
+        # "${sample}_output/Results/${sample}/ *CombinedVariantOutput.tsv cvo"
+        # "${sample}_output/Logs_Intermediates/CnvCaller/ *CopyNumberVariants.vcf cnv_vcf"
+    )
 
-    dna_bam_index=$(find "/home/dnanexus/out/Analysis/${sample}_output/Logs_Intermediates/StitchedRealigned/" \
-        -type f -name "*.bai")
-    xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} dna_bam_index" <<< "$dna_bam_index"
-    xargs -n1 -I{} mv {} /tmp <<< $dna_bam_index
+    # upload each of the sets of distinct output files
+    for mapping in "${file_mapping[@]}"; do
+        read -r path pattern field <<< "$mapping"
 
-    rna_bams=$(find "/home/dnanexus/out/Analysis/${sample}_output/Logs_Intermediates/RnaAlignment/" \
-        -type f -name "*.bam")
-    if [[ "$rna_bams" ]]; then
-        xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} rna_bams" <<< "$rna_bams"
-        xargs -n1 -I{} mv {} /tmp <<< $rna_bams
-    fi
+        files=$(find "/home/dnanexus/out/Analysis/${path}" -type f -name "${pattern}")
+        xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} ${field}" <<< "${files}"
+        xargs -n1 -I{} mv {} /tmp <<< $files
+    done
 
-    rna_bam_index=$(find "/home/dnanexus/out/Analysis/${sample}_output/Logs_Intermediates/RnaAlignment/" \
-        -type f -name "*.bai")
-    if [[ "$rna_bam_index" ]]; then
-        xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} rna_bam_index" <<< "$rna_bam_index"
-        xargs -n1 -I{} mv {} /tmp <<< $rna_bam_index
-    fi
-
-    gvcf=$(find "/home/dnanexus/out/Analysis/${sample}_output/Results/${sample}/" \
-        -type f -name "*.genome.vcf")
-    xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} gvcfs" <<< "$gvcf"
-    xargs -n1 -I{} mv {} /tmp <<< $gvcf
-
-    cvo=$(find "/home/dnanexus/out/Analysis/${sample}_output/Results/${sample}/" \
-        -type f -name "*CombinedVariantOutput.tsv")
-    xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} cvo" <<< "$cvo"
-    xargs -n1 -I{} mv {} /tmp <<< $cvo
+    # compress intermediate genome VCFs since we don't use these routinely
+    # and they go from >300mb to < 10mb
+    find "/home/dnanexus/out/Analysis/${sample}_output/Logs_Intermediates/" -type f \
+        -name "*.vcf"  -exec gzip {} \;
 
     # upload rest of files
     find /home/dnanexus/out/ -type f | xargs -P ${THREADS} -n1 -I{} bash -c \
@@ -369,6 +366,23 @@ _upload_gather_output() {
     tar -czf gather_logs.tar.gz all_logs
     mv gather_logs.tar.gz /home/dnanexus/out/Results/
 
+    # mapping of file patterns and output field to attribute to
+    file_mapping=(
+        "*MergedSmallVariants.genome.vcf gvcfs"
+        "*Annotated.json.gz annotation"
+        "*CombinedVariantOutput.tsv cvo"
+        "*CopyNumberVariants.vcf cnv_vcfs"
+    )
+
+    # upload each of the sets of distinct output files
+    for mapping in "${file_mapping[@]}"; do
+        read -r pattern field <<< "$mapping"
+
+        files=$(find "/home/dnanexus/out/Results/Results/" -type f -name "${pattern}")
+        xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} ${field}" <<< "${files}"
+        xargs -n1 -I{} mv {} /tmp <<< $files
+    done
+
     # upload final MetricsOutput.tsv as distinct output field
     metrics_file_id=$(dx upload -p /home/dnanexus/out/Results/Results/MetricsOutput.tsv --brief)
     dx-jobutil-add-output "metricsOutput" "$metrics_file_id" --class=file
@@ -377,6 +391,7 @@ _upload_gather_output() {
     # upload rest of files
     find "/home/dnanexus/out/Results" -type f | xargs -P ${THREADS} -n1 -I{} bash -c \
         "_upload_single_file {} analysis_folder"
+
 
     duration=$SECONDS
     echo "Uploading took $(($duration / 60))m$(($duration % 60))s."
@@ -473,9 +488,14 @@ _scatter() {
     options : str
         str of other cmd line options to specify to local app
     '''
+    # prefixes all lines of commands written to stdout with datetime
     PS4='\000[$(date)]\011'
     export TZ=Europe/London
     set -exo pipefail
+
+    # set frequency of instance usage in logs to 60 seconds
+    kill $(ps aux | grep pcp-dstat | head -n1 | awk '{print $2}')
+    /usr/bin/dx-dstat 60
 
     # control how many operations to open in parallel for download / upload
     THREADS=$(nproc --all)

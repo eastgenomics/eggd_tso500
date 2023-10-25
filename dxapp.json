@@ -151,7 +151,31 @@
     },
     {
       "name": "gvcfs",
-      "label": "gvcfs",
+      "label": "genome VCFs",
+      "class": "array:file",
+      "optional": true
+    },
+    {
+      "name": "cnv_vcfs",
+      "label": "CNV VCFs",
+      "class": "array:file",
+      "optional": true
+    },
+    {
+      "name": "msi_metrics",
+      "label": "MSI metrics",
+      "class": "array:file",
+      "optional": true
+    },
+    {
+      "name": "tmb_metrics",
+      "label": "TMB metrics",
+      "class": "array:file",
+      "optional": true
+    },
+    {
+      "name": "annotation",
+      "label": "annotation",
       "class": "array:file",
       "optional": true
     },
