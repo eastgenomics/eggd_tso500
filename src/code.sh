@@ -327,6 +327,10 @@ _upload_gather_output() {
     SECONDS=0
     export -f _upload_single_file
 
+    # limit upload more strictly, DNAnexus seems to get mad with really
+    # high number of concurrent uploads
+    UPLOAD_THREADS=$(bc <<< "$(nproc --all) / 2")
+
     # delete the per sample Results directories since these are just copies of
     # the files in the Logs_Intermediates sub directories and are also
     # copied into the gather step final Results directory
@@ -340,6 +344,7 @@ _upload_gather_output() {
     rm -rf /home/dnanexus/out/Results/cromwell-executions
 
     # tar up all the logs, stdout and stderr for faster upload
+    set +x
     logs=$(find out/Analysis out/Results \
         -name "*.log" -o \
         -name "*.out" -o \
@@ -352,10 +357,15 @@ _upload_gather_output() {
         -name "*Log*.txt" -o \
         -name "*Log*.zip"
         )
+    total_logs=$(wc -c <<< "$logs")
 
     mkdir all_logs && xargs -I{} mv {} all_logs/ <<< "$logs"
     tar -czf analysis_results_logs.tar.gz all_logs
     mv analysis_results_logs.tar.gz /home/dnanexus/out/Logs
+
+    total_files=$(find out/Analysis/ out/Results/ out/Logs/ | wc -l)
+    set -x
+    echo "Total log files found added to tar: ${total_logs}"
 
     # mapping of paths to search for files with file patterns and output field to attribute to
     # this allows us to make distinct groups of outputs for each file type, whilst
@@ -378,7 +388,7 @@ _upload_gather_output() {
         read -r path field <<< "$mapping"
 
         files=$(find /home/dnanexus/out -type f -path "$path")
-        xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} ${field} true" <<< "${files}"
+        xargs -P ${UPLOAD_THREADS} -n1 -I{} bash -c "_upload_single_file {} ${field} true" <<< "${files}"
         xargs -n1 -I{} mv {} /tmp <<< $files
     done
 
@@ -391,10 +401,10 @@ _upload_gather_output() {
     find /home/dnanexus/out/Analysis \
          /home/dnanexus/out/Logs \
          /home/dnanexus/out/Results -type f \
-        | xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} analysis_folder true"
+        | xargs -P ${UPLOAD_THREADS} -n1 -I{} bash -c "_upload_single_file {} analysis_folder true"
 
     duration=$SECONDS
-    echo "Uploading took $(($duration / 60))m$(($duration % 60))s."
+    echo "Uploaded ${total_files} files in $(($duration / 60))m$(($duration % 60))s."
 }
 
 
@@ -702,4 +712,6 @@ main() {
     fi
 
     echo "All steps complete"
+
+    cat job_output.json
 }
