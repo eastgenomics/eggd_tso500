@@ -111,7 +111,7 @@ _get_samplesheet() {
         exit 1
     fi
 }
-container-GZvZBp04BVyYzjbj6gfpgK9j
+
 
 _parse_samplesheet() {
     : '''
@@ -241,13 +241,18 @@ _upload_single_file(){
         path and file to upload
     2 : str
         app output field to link the uploaded file to
+    3 : bool
+        (optional) controls if to link output file to job output spec
   '''
   local file=$1
   local field=$2
+  local link=$3
+
   local remote_path=$(sed s'/\/home\/dnanexus\/out\///' <<< "$file")
 
   file_id=$(dx upload "$file" --path "$remote_path" --parents --brief)
-  dx-jobutil-add-output "$field" "$file_id" --array
+
+  [[ $link ]] && dx-jobutil-add-output "$field" "$file_id" --array
 }
 
 
@@ -284,27 +289,27 @@ _upload_scatter_output() {
     mv ${sample}_scatter_logs.tar.gz /home/dnanexus/out/Analysis/${sample}_output/
     mv /home/dnanexus/${sample}_scatter_stdout.txt /home/dnanexus/out/Analysis/${sample}_output/
 
-    # mapping of paths to search for files, file patterns and output field to attribute to
-    file_mapping=(
-        "${sample}_output/Logs_Intermediates/StitchedRealigned/ *.bam dna_bams"
-        "${sample}_output/Logs_Intermediates/StitchedRealigned/ *.bai dna_bam_index"
-        "${sample}_output/Logs_Intermediates/RnaAlignment/ *.bam rna_bams"
-        "${sample}_output/Logs_Intermediates/RnaAlignment/ *.bai rna_bam_index"
-        "${sample}_output/Logs_Intermediates/Msi/ *.msi.json msi_metrics"
-        "${sample}_output/Logs_Intermediates/Tmb/ *.tmb.json tmb_metrics"
-        # "${sample}_output/Results/${sample}/ *MergedSmallVariants.genome.vcf gvcf"
-        # "${sample}_output/Results/${sample}/ *CombinedVariantOutput.tsv cvo"
-        # "${sample}_output/Logs_Intermediates/CnvCaller/ *CopyNumberVariants.vcf cnv_vcf"
-    )
+    # # mapping of paths to search for files, file patterns and output field to attribute to
+    # file_mapping=(
+    #     "${sample}_output/Logs_Intermediates/StitchedRealigned/ *.bam dna_bams"
+    #     "${sample}_output/Logs_Intermediates/StitchedRealigned/ *.bai dna_bam_index"
+    #     "${sample}_output/Logs_Intermediates/RnaAlignment/ *.bam rna_bams"
+    #     "${sample}_output/Logs_Intermediates/RnaAlignment/ *.bai rna_bam_index"
+    #     "${sample}_output/Logs_Intermediates/Msi/ *.msi.json msi_metrics"
+    #     "${sample}_output/Logs_Intermediates/Tmb/ *.tmb.json tmb_metrics"
+    #     # "${sample}_output/Results/${sample}/ *MergedSmallVariants.genome.vcf gvcf"
+    #     # "${sample}_output/Results/${sample}/ *CombinedVariantOutput.tsv cvo"
+    #     # "${sample}_output/Logs_Intermediates/CnvCaller/ *CopyNumberVariants.vcf cnv_vcf"
+    # )
 
-    # upload each of the sets of distinct output files
-    for mapping in "${file_mapping[@]}"; do
-        read -r path pattern field <<< "$mapping"
+    # # upload each of the sets of distinct output files
+    # for mapping in "${file_mapping[@]}"; do
+    #     read -r path pattern field <<< "$mapping"
 
-        files=$(find "/home/dnanexus/out/Analysis/${path}" -type f -name "${pattern}")
-        xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} ${field}" <<< "${files}"
-        xargs -n1 -I{} mv {} /tmp <<< $files
-    done
+    #     files=$(find "/home/dnanexus/out/Analysis/${path}" -type f -name "${pattern}")
+    #     xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} ${field}" <<< "${files}"
+    #     xargs -n1 -I{} mv {} /tmp <<< $files
+    # done
 
     # compress intermediate genome VCFs since we don't use these routinely
     # and they go from >300mb to < 10mb
@@ -329,17 +334,17 @@ _upload_gather_output() {
     SECONDS=0
 
     # link output of sub scatter jobs to parent job
-    while read -r job; do
-        output_fields="dna_bams dna_bam_index rna_bams rna_bam_index gvcfs cvo analysis_folder"
-        job_output=$(dx describe --json "$job" | jq -r '.output | keys')
+    # while read -r job; do
+    #     output_fields="dna_bams dna_bam_index rna_bams rna_bam_index gvcfs cvo analysis_folder"
+    #     job_output=$(dx describe --json "$job" | jq -r '.output | keys')
 
-        for output in $output_fields; do
-            if [[ "$job_output" =~ "$output" ]]; then
-                # sub job has this output field => link to parent output spec
-                dx-jobutil-add-output "$output" "${job}":"$output" --class=array:jobref
-            fi
-        done
-    done < job_ids
+    #     for output in $output_fields; do
+    #         if [[ "$job_output" =~ "$output" ]]; then
+    #             # sub job has this output field => link to parent output spec
+    #             dx-jobutil-add-output "$output" "${job}":"$output" --class=array:jobref
+    #         fi
+    #     done
+    # done < job_ids
 
     export -f _upload_single_file
 
@@ -365,6 +370,28 @@ _upload_gather_output() {
     mkdir all_logs && xargs -I{} mv {} all_logs/ <<< "$logs"
     tar -czf gather_logs.tar.gz all_logs
     mv gather_logs.tar.gz /home/dnanexus/out/Results/
+
+        # mapping of paths to search for files, file patterns and output field to attribute to
+    file_mapping=(
+        "${sample}_output/Logs_Intermediates/StitchedRealigned/ *.bam dna_bams"
+        "${sample}_output/Logs_Intermediates/StitchedRealigned/ *.bai dna_bam_index"
+        "${sample}_output/Logs_Intermediates/RnaAlignment/ *.bam rna_bams"
+        "${sample}_output/Logs_Intermediates/RnaAlignment/ *.bai rna_bam_index"
+        "${sample}_output/Logs_Intermediates/Msi/ *.msi.json msi_metrics"
+        "${sample}_output/Logs_Intermediates/Tmb/ *.tmb.json tmb_metrics"
+        # "${sample}_output/Results/${sample}/ *MergedSmallVariants.genome.vcf gvcf"
+        # "${sample}_output/Results/${sample}/ *CombinedVariantOutput.tsv cvo"
+        # "${sample}_output/Logs_Intermediates/CnvCaller/ *CopyNumberVariants.vcf cnv_vcf"
+    )
+
+    # upload each of the sets of distinct output files
+    for mapping in "${file_mapping[@]}"; do
+        read -r path pattern field <<< "$mapping"
+
+        files=$(find "/home/dnanexus/out/Analysis/${path}" -type f -name "${pattern}")
+        xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} ${field}" <<< "${files}"
+        xargs -n1 -I{} mv {} /tmp <<< $files
+    done
 
     # mapping of file patterns and output field to attribute to
     file_mapping=(
@@ -411,7 +438,7 @@ _upload_demultiplex_output() {
     # first upload fastqs to set to distinct fastqs output field,
     # then upload the rest
     fastqs=$(find "/home/dnanexus/out/DemultiplexOutput" -type f -name "*fastq.gz")
-    xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} fastqs" <<< "$fastqs"
+    xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} fastqs true" <<< "$fastqs"
     xargs -n1 -I{} mv {} /tmp <<< $fastqs
 
     # tar up all cromwell logs for faster upload
@@ -421,7 +448,7 @@ _upload_demultiplex_output() {
 
     # upload rest of files
     find "/home/dnanexus/out/DemultiplexOutput/" -type f | xargs -P ${THREADS} -n1 -I{} bash -c \
-        "_upload_single_file {} analysis_folder"
+        "_upload_single_file {} demultiplex_logs true"
 
     duration=$SECONDS
     echo "Uploading took $(($duration / 60))m$(($duration % 60))s."
