@@ -111,7 +111,7 @@ _get_samplesheet() {
         exit 1
     fi
 }
-container-GZvZBp04BVyYzjbj6gfpgK9j
+
 
 _parse_samplesheet() {
     : '''
@@ -633,7 +633,6 @@ main() {
     mkdir -p /home/dnanexus/runfolder \
              /home/dnanexus/TSO500_ruo \
              /home/dnanexus/out/DemultiplexOutput \
-             /home/dnanexus/out/logs/logs \
              /home/dnanexus/out/Analysis \
              /home/dnanexus/out/Results
 
@@ -700,6 +699,8 @@ main() {
         # upload output files from gather step
         _upload_gather_output
     fi
+
+    # exit 1
 
     # check usage to monitor usage of instance storage
     echo "Total file system usage"
