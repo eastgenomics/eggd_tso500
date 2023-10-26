@@ -141,7 +141,7 @@ _modify_samplesheet() {
     
     The modified samplesheet will be uploaded to the output
     folder as "modified_SampleSheet.csv" to be able to pass
-    the file ID to the scatter job.
+    the file ID to the scatter job(s).
 
     This modifies the following global variables:
 
@@ -701,9 +701,5 @@ main() {
         _upload_gather_output
     fi
 
-    # exit 1
-
-    # check usage to monitor usage of instance storage
-    echo "Total file system usage"
-    df -h
+    echo "All steps complete"
 }
