@@ -201,6 +201,13 @@
       "optional": true
     },
     {
+      "name": "demultiplex_logs",
+      "label": "demultiplex logs",
+      "class": "array:file",
+      "optional":true,
+      "help": "all intermediate and log files from demultiplexing"
+    },
+    {
       "name": "logs",
       "label": "logs",
       "help": "stdout logs created during analysis",
