@@ -3,7 +3,7 @@
   "title": "eggd_tso500",
   "summary": "Somatic variant calling for DNA & RNA samples using TSO500 local app",
   "dxapi": "1.0.0",
-  "version":"1.3.0",
+  "version":"2.0.0",
   "openSource": true,
   "inputSpec": [
     {
