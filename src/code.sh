@@ -5,9 +5,9 @@ PS4='\000[$(date)]\011'
 export TZ=Europe/London
 set -exo pipefail
 
-# set frequency of instance usage in logs to 60 seconds
+# set frequency of instance usage in logs to 30 seconds
 kill $(ps aux | grep pcp-dstat | head -n1 | awk '{print $2}')
-/usr/bin/dx-dstat 60
+/usr/bin/dx-dstat 30
 
 
 _get_tso_resources() {
@@ -256,8 +256,6 @@ _upload_single_file() {
   if [[ "$link" == true ]]; then 
     dx-jobutil-add-output "$field" "$file_id" --array
   fi
-
-  echo "Uploaded ${remote_path}"
 }
 
 
@@ -271,6 +269,10 @@ _upload_scatter_output() {
     SECONDS=0
     echo "Uploading sample output"
     export -f _upload_single_file
+
+    # limit upload more strictly, DNAnexus seems to get mad with really
+    # high number of concurrent uploads
+    UPLOAD_THREADS=$(bc <<< "$(nproc --all) / 2")
 
     # tar up all cromwell logs for faster upload
     tar -I pigz -cf /home/dnanexus/out/Logs/${sample}_cromwell_executions.tar.gz \
@@ -296,7 +298,7 @@ _upload_scatter_output() {
         -name "*.vcf"  -exec gzip {} \;
 
     # upload rest of files
-    find /home/dnanexus/out/ -type f | xargs -P ${THREADS} -n1 -I{} bash -c \
+    find /home/dnanexus/out/ -type f | xargs -P ${UPLOAD_THREADS} -n1 -I{} bash -c \
         "_upload_single_file {} analysis_folder false"
     
     duration="$SECONDS"
@@ -712,6 +714,4 @@ main() {
     fi
 
     echo "All steps complete"
-
-    cat job_output.json
 }
