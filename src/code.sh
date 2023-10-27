@@ -435,7 +435,7 @@ _upload_gather_output() {
     tar -czf analysis_results_logs.tar.gz all_logs
     mv analysis_results_logs.tar.gz /home/dnanexus/out/logs
 
-    total_files=$(find out/scatter/ out/gather/ out/Logs/ | wc -l)
+    total_files=$(find out/scatter/ out/gather/ out/logs/ | wc -l)
     set -x
     echo "Total log files found added to tar: ${total_logs}"
 
@@ -443,12 +443,12 @@ _upload_gather_output() {
     # this allows us to make distinct groups of outputs for each file type, whilst
     # retaining the full directory structure once uploaded to the project
     file_mapping=(
-        "*/scatter/*/Logs_Intermediates/StitchedRealigned/*.bam dna_bams"
-        "*/scatter/*/Logs_Intermediates/StitchedRealigned/*.bai dna_bam_index"
-        "*/scatter/*/Logs_Intermediates/RnaAlignment/*.bam rna_bams"
-        "*/scatter/*/Logs_Intermediates/RnaAlignment/*.bai rna_bam_index"
-        "*/scatter/*/Logs_Intermediates/Msi/*.msi.json msi_metrics"
-        "*/scatter/*/Logs_Intermediates/Tmb/*.tmb.json tmb_metrics"
+        "*/scatter/StitchedRealigned/*/*.bam dna_bams"
+        "*/scatter/StitchedRealigned/*/*.bai dna_bam_index"
+        "*/scatter/RnaAlignment/*/*.bam rna_bams"
+        "*/scatter/RnaAlignment/*/*.bai rna_bam_index"
+        "*/scatter/Msi/*/*.msi.json msi_metrics"
+        "*/scatter/Tmb/*/*.tmb.json tmb_metrics"
         "*/gather/Results/*/*MergedSmallVariants.genome.vcf gvcfs"
         "*/gather/Results/*/*Annotated.json.gz annotation"
         "*/gather/Results/*/*CombinedVariantOutput.tsv cvo"
