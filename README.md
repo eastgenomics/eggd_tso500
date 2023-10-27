@@ -20,7 +20,7 @@ Runs the Illumina TSO500 local analysis app.
 - `exclude_samples` (`str`) - comma separated string of samples to NOT run analyses for
 
 ## How does this app work? 
-The app runs the TSO500 local app in the 'scatter / gather' mode (explained on [page 9 here][user-guide]), this works by splitting off the per sample analysis into separate sub jobs in parallel and then combining the output in the parent job to produce the final results. The general outline is as follows:
+The app runs the TSO500 local app in the 'scatter / gather' mode (explained on [page 9 here][user-guide]), this works by splitting off the per sample analysis into separate sub jobs in parallel and then combining the output in the parent job to produce the final results. This greatly speeds up analysis vs running the local app sequentially on all samples. The general outline is as follows:
 
 - download and unpack the TSO500 resources zip file
 - download and unpack the run data tar files
