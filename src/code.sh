@@ -68,8 +68,8 @@ _get_scatter_job_outputs() {
 
     # files from sub jobs will be in the container- project context of the
     # current job ($DX_WORKSPACE-id) => search here for  all the files
-    scatter_files=$(dx find data --json --verbose --path "$DX_WORKSPACE_ID:/Analysis")
-    scatter_files+=" $(dx find data --json --verbose --path "$DX_WORKSPACE_ID:/Logs")"
+    scatter_files=$(dx find data --json --verbose --path "$DX_WORKSPACE_ID:/scatter")
+    scatter_files+=" $(dx find data --json --verbose --path "$DX_WORKSPACE_ID:/logs")"
 
     # turn describe output into id:/path/to/file to download with dir structure
     files=$(jq -r '.[] | .id + ":" + .describe.folder + "/" + .describe.name'  <<< $scatter_files)
@@ -83,7 +83,7 @@ _get_scatter_job_outputs() {
 
     set -x
 
-    total=$(du -sh /home/dnanexus/out/Analysis/ | cut -f1)
+    total=$(du -sh /home/dnanexus/out/scatter/ | cut -f1)
     duration=$SECONDS
     echo "Downloaded $(wc -w <<< ${files}) files (${total}) in $(($duration / 60))m$(($duration % 60))s"
 }
@@ -231,6 +231,76 @@ _calculate_total_fq_size() {
 }
 
 
+_format_output_directories() {
+    : '''
+    Format the scatter output directories to remove some of the duplicated nesting. This
+    will create one directory per analysis step (i.e alignment, variant calling, QC etc)
+    and create one directory per sample inside of here.
+
+    Default directory structure downloaded from all scatter jobs:
+    
+        ├── scatter
+        |    ├── sample1_output
+        |    │   ├── Logs_Intermediates
+        |    │   │   ├── Annotation
+        |    │   │   │   └── sample1
+        |    │   │   │       ├── ...
+        |    │   │   ├── DnaQCMetrics
+        |    │   │   │   └── sample1
+        |    │   │   │       ├── ...
+        |    ├── sample2_output
+        |    │   ├── Logs_Intermediates
+        |    │   │   ├── Annotation
+        |    │   │   │   └── sample2
+        |    │   │   │       ├── ...
+
+
+    Will become:
+
+        ├── scatter
+        │   ├── Annotation
+        │   │   └── sample1
+        │   │       ├── ...
+        │   │   └── sample2
+        │   │       ├── ...
+        │   ├── DnaQCMetrics
+        │   │   └── sample1
+        │   │       ├── ...
+        │   │   └── sample2
+        │   │       ├── ...
+    '''
+    # take the sub directories from each samples outputs and move them into
+    # the same level in /home/dnanexus/out/scatter/
+    for sample in $sample_list; do
+        # some files aren't in sample named sub directories that we can nicely just
+        # move, make these consistent as the files aren't always named uniquely either
+        # (thanks Illumina)
+        dirs="MetricsOutput RnaAlignment SampleAnalysisResults SamplesheetValidation"
+
+        for dir in $dirs; do
+            sample_sub_dir="/home/dnanexus/out/scatter/${sample}_output/Logs_Intermediates/${dir}/${sample}/"
+            mkdir -p "$sample_sub_dir"
+            find "/home/dnanexus/out/scatter/${sample}_output/Logs_Intermediates/${dir}/" \
+                -type f | xargs -I{} mv {} "$sample_sub_dir"
+        done
+
+        app_dirs=$(find "/home/dnanexus/out/scatter/${sample}_output/Logs_Intermediates" \
+            -maxdepth 1 -mindepth 1 -type d)
+
+        for app_dir in $app_dirs; do
+            # drop the per sample output part of path and create the app directories
+            dir=$(sed "s/${sample}_output\/Logs_Intermediates\///" <<< "$app_dir")
+            mkdir -p "$dir/${sample}"
+            find "$app_dir" -type f | xargs -I{} mv {} "$dir/${sample}/"
+        done
+
+        # chuck away the empty directory
+        mv "/home/dnanexus/out/scatter/${sample}_output" /tmp
+    done
+
+}
+
+
 _upload_single_file() {
   : '''
   Uploads single file with dx upload and associates uploaded
@@ -275,12 +345,12 @@ _upload_scatter_output() {
     UPLOAD_THREADS=$(bc <<< "$(nproc --all) / 2")
 
     # tar up all cromwell logs for faster upload
-    tar -I pigz -cf /home/dnanexus/out/Logs/${sample}_cromwell_executions.tar.gz \
-        /home/dnanexus/out/Analysis/${sample}_output/cromwell-executions
-    rm -rf /home/dnanexus/out/Analysis/${sample}_output/cromwell-executions/
+    tar -I pigz -cf /home/dnanexus/out/logs/${sample}_cromwell_executions.tar.gz \
+        /home/dnanexus/out/scatter/${sample}_output/cromwell-executions
+    rm -rf /home/dnanexus/out/scatter/${sample}_output/cromwell-executions/
 
     # tar up all the logs, stdout and stderr for faster upload
-    logs=$(find out/Analysis/${sample}_output/ \
+    logs=$(find out/scatter/${sample}_output/ \
         -name "*.log" -o \
         -name "*.out" -o \
         -name "*.stderr" -o \
@@ -289,12 +359,12 @@ _upload_scatter_output() {
 
     mkdir all_logs && xargs -I{} mv {} all_logs/ <<< "$logs"
     tar -czf ${sample}_scatter_logs.tar.gz all_logs
-    mv ${sample}_scatter_logs.tar.gz /home/dnanexus/out/Logs/
-    mv /home/dnanexus/${sample}_scatter_stdout.txt /home/dnanexus/out/Logs/
+    mv ${sample}_scatter_logs.tar.gz /home/dnanexus/out/logs/
+    mv /home/dnanexus/${sample}_scatter_stdout.txt /home/dnanexus/out/logs/
 
     # compress intermediate genome VCFs since we don't use these routinely
     # and they go from >300mb to < 10mb (plus its a vcf, it should be compressed)
-    find "/home/dnanexus/out/Analysis/${sample}_output/Logs_Intermediates/" -type f \
+    find "/home/dnanexus/out/scatter/${sample}_output/Logs_Intermediates/" -type f \
         -name "*.vcf"  -exec gzip {} \;
 
     # upload rest of files
@@ -317,10 +387,10 @@ _upload_gather_output() {
         - RNA bam & bai (from RnaAlignment step)
         - MSI JSON (from Msi step)
         - TMB JSON (from Tmb step)
-        - MergedSmallVariants.genome.vcf (from Results)
-        - annotated JSON (Nirvana annotated variants; from Results)
-        - CombinedVariantOutput (from Results)
-        - CopyNumberVariants.vcf (from Results)
+        - MergedSmallVariants.genome.vcf (from gather/Results)
+        - annotated JSON (Nirvana annotated variants; from gather/Results)
+        - CombinedVariantOutput (from gather/Results)
+        - CopyNumberVariants.vcf (from gather/Results)
     
     The rest of the per sample analysis and gather step files are then uploaded
     in parallel to the "analysis_folder" output field.
@@ -335,19 +405,19 @@ _upload_gather_output() {
 
     # delete the per sample Results directories since these are just copies of
     # the files in the Logs_Intermediates sub directories and are also
-    # copied into the gather step final Results directory
-    find /home/dnanexus/out/Analysis -maxdepth 2 -type d -name "Results" -exec rm -rf {} \;
+    # copied into the gather step final gather directory
+    find /home/dnanexus/out/scatter -maxdepth 2 -type d -name "gather" -exec rm -rf {} \;
 
-    echo "Total files to upload: $(find /home/dnanexus/out/Results /home/dnanexus/out/Analysis -type f | wc -l)"
+    echo "Total files to upload: $(find /home/dnanexus/out/gather /home/dnanexus/out/scatter -type f | wc -l)"
 
     # tar up all cromwell logs for faster upload
-    tar -I pigz -cf /home/dnanexus/out/Logs/gather_cromwell_executions.tar.gz \
-        /home/dnanexus/out/Results/cromwell-executions
-    rm -rf /home/dnanexus/out/Results/cromwell-executions
+    tar -I pigz -cf /home/dnanexus/out/logs/gather_cromwell_executions.tar.gz \
+        /home/dnanexus/out/gather/cromwell-executions
+    rm -rf /home/dnanexus/out/gather/cromwell-executions
 
     # tar up all the logs, stdout and stderr for faster upload
     set +x
-    logs=$(find out/Analysis out/Results \
+    logs=$(find out/scatter out/gather \
         -name "*.log" -o \
         -name "*.out" -o \
         -name "*.stderr" -o \
@@ -363,9 +433,9 @@ _upload_gather_output() {
 
     mkdir all_logs && xargs -I{} mv {} all_logs/ <<< "$logs"
     tar -czf analysis_results_logs.tar.gz all_logs
-    mv analysis_results_logs.tar.gz /home/dnanexus/out/Logs
+    mv analysis_results_logs.tar.gz /home/dnanexus/out/logs
 
-    total_files=$(find out/Analysis/ out/Results/ out/Logs/ | wc -l)
+    total_files=$(find out/scatter/ out/gather/ out/Logs/ | wc -l)
     set -x
     echo "Total log files found added to tar: ${total_logs}"
 
@@ -373,16 +443,16 @@ _upload_gather_output() {
     # this allows us to make distinct groups of outputs for each file type, whilst
     # retaining the full directory structure once uploaded to the project
     file_mapping=(
-        "*/Analysis/*/Logs_Intermediates/StitchedRealigned/*.bam dna_bams"
-        "*/Analysis/*/Logs_Intermediates/StitchedRealigned/*.bai dna_bam_index"
-        "*/Analysis/*/Logs_Intermediates/RnaAlignment/*.bam rna_bams"
-        "*/Analysis/*/Logs_Intermediates/RnaAlignment/*.bai rna_bam_index"
-        "*/Analysis/*/Logs_Intermediates/Msi/*.msi.json msi_metrics"
-        "*/Analysis/*/Logs_Intermediates/Tmb/*.tmb.json tmb_metrics"
-        "*/Results/Results/*/*MergedSmallVariants.genome.vcf gvcfs"
-        "*/Results/Results/*/*Annotated.json.gz annotation"
-        "*/Results/Results/*/*CombinedVariantOutput.tsv cvo"
-        "*/Results/Results/*/*CopyNumberVariants.vcf cnv_vcfs"
+        "*/scatter/*/Logs_Intermediates/StitchedRealigned/*.bam dna_bams"
+        "*/scatter/*/Logs_Intermediates/StitchedRealigned/*.bai dna_bam_index"
+        "*/scatter/*/Logs_Intermediates/RnaAlignment/*.bam rna_bams"
+        "*/scatter/*/Logs_Intermediates/RnaAlignment/*.bai rna_bam_index"
+        "*/scatter/*/Logs_Intermediates/Msi/*.msi.json msi_metrics"
+        "*/scatter/*/Logs_Intermediates/Tmb/*.tmb.json tmb_metrics"
+        "*/gather/Results/*/*MergedSmallVariants.genome.vcf gvcfs"
+        "*/gather/Results/*/*Annotated.json.gz annotation"
+        "*/gather/Results/*/*CombinedVariantOutput.tsv cvo"
+        "*/gather/Results/*/*CopyNumberVariants.vcf cnv_vcfs"
     )
 
     # upload each of the sets of distinct output files
@@ -395,14 +465,14 @@ _upload_gather_output() {
     done
 
     # upload final run level MetricsOutput.tsv as distinct output field
-    metrics_file_id=$(dx upload -p /home/dnanexus/out/Results/Results/MetricsOutput.tsv --brief)
+    metrics_file_id=$(dx upload -p /home/dnanexus/out/gather/Results/MetricsOutput.tsv --brief)
     dx-jobutil-add-output "metricsOutput" "$metrics_file_id" --class=file
-    mv /home/dnanexus/out/Results/Results/MetricsOutput.tsv /tmp
+    mv /home/dnanexus/out/gather/Results/MetricsOutput.tsv /tmp
 
     # upload rest of files
-    find /home/dnanexus/out/Analysis \
-         /home/dnanexus/out/Logs \
-         /home/dnanexus/out/Results -type f \
+    find /home/dnanexus/out/scatter \
+         /home/dnanexus/out/logs \
+         /home/dnanexus/out/gather -type f \
         | xargs -P ${UPLOAD_THREADS} -n1 -I{} bash -c "_upload_single_file {} analysis_folder true"
 
     duration=$SECONDS
@@ -422,17 +492,17 @@ _upload_demultiplex_output() {
 
     # first upload fastqs to set to distinct fastqs output field,
     # then upload the rest
-    fastqs=$(find "/home/dnanexus/out/DemultiplexOutput" -type f -name "*fastq.gz")
+    fastqs=$(find "/home/dnanexus/out/demultiplexOutput" -type f -name "*fastq.gz")
     xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} fastqs true" <<< "$fastqs"
     xargs -n1 -I{} mv {} /tmp <<< $fastqs
 
     # tar up all cromwell logs for faster upload
-    tar -I pigz -cf /home/dnanexus/out/DemultiplexOutput/demultiplex_cromwell_executions.tar.gz \
-        /home/dnanexus/out/DemultiplexOutput/cromwell-executions
-    rm -rf /home/dnanexus/out/DemultiplexOutput/cromwell-executions
+    tar -I pigz -cf /home/dnanexus/out/demultiplexOutput/demultiplex_cromwell_executions.tar.gz \
+        /home/dnanexus/out/demultiplexOutput/cromwell-executions
+    rm -rf /home/dnanexus/out/demultiplexOutput/cromwell-executions
 
     # upload rest of files
-    find "/home/dnanexus/out/DemultiplexOutput/" -type f | xargs -P ${THREADS} -n1 -I{} bash -c \
+    find "/home/dnanexus/out/demultiplexOutput/" -type f | xargs -P ${THREADS} -n1 -I{} bash -c \
         "_upload_single_file {} demultiplex_logs true"
 
     duration=$SECONDS
@@ -467,7 +537,7 @@ _demultiplex() {
     SECONDS=0
 
     /usr/bin/time -v sudo bash TSO500_ruo/TSO500_RUO_LocalApp/TruSight_Oncology_500_RUO.sh \
-        --analysisFolder /home/dnanexus/out/DemultiplexOutput/ \
+        --analysisFolder /home/dnanexus/out/demultiplexOutput/ \
         --runFolder /home/dnanexus/runfolder/ \
         --resourcesFolder /home/dnanexus/TSO500_ruo/TSO500_RUO_LocalApp/resources \
         --sampleSheet /home/dnanexus/$samplesheet_path \
@@ -514,9 +584,9 @@ _scatter() {
 
     mkdir -p /home/dnanexus/runfolder \
              /home/dnanexus/TSO500_ruo \
-             /home/dnanexus/DemultiplexOutput/$sample \
-             /home/dnanexus/out/Logs \
-             /home/dnanexus/out/Analysis
+             /home/dnanexus/demultiplexOutput/$sample \
+             /home/dnanexus/out/logs \
+             /home/dnanexus/out/scatter
 
     dx download "$samplesheet" -o "SampleSheet.csv"
 
@@ -539,7 +609,7 @@ _scatter() {
     echo "Total fastqs found for sample: $(wc -w <<< $sample_fqs)"
     echo "Sample fastqs parsed: ${sample_fqs}"
     echo $sample_fqs | xargs -n1 -P${THREADS} -I{} sh -c \
-        "dx download --no-progress -o /home/dnanexus/DemultiplexOutput/$sample/ {}"
+        "dx download --no-progress -o /home/dnanexus/demultiplexOutput/$sample/ {}"
     
     duration=$SECONDS
     echo "Downloaded fastqs in $(($duration / 60))m$(($duration % 60))s"
@@ -552,14 +622,14 @@ _scatter() {
         SECONDS=0
 
         sudo bash TSO500_ruo/TSO500_RUO_LocalApp/TruSight_Oncology_500_RUO.sh \
-            --analysisFolder /home/dnanexus/out/Analysis/"${sample}"_output \
-            --fastqFolder /home/dnanexus/DemultiplexOutput/ \
+            --analysisFolder /home/dnanexus/out/scatter/"${sample}"_output \
+            --fastqFolder /home/dnanexus/demultiplexOutput/ \
             --resourcesFolder /home/dnanexus/TSO500_ruo/TSO500_RUO_LocalApp/resources \
             --sampleSheet /home/dnanexus/SampleSheet.csv \
             --sampleOrPairIDs "$sample" \
             ${options} 2>&1 | tee /home/dnanexus/${sample}_scatter_stdout.txt
     
-        echo Analysis complete
+        echo scatter complete
     } || {
         # some form of error occured in running that raised non-zero exit code
         code=$?
@@ -591,7 +661,7 @@ _gather() {
     '''
     sample_output_dirs=""
     for sample in $sample_list; do
-        sample_output_dirs+="/home/dnanexus/out/Analysis/${sample}_output "
+        sample_output_dirs+="/home/dnanexus/out/scatter/${sample}_output "
     done
 
     if [[ -f runfolder/modified_SampleSheet.csv ]]; then
@@ -606,14 +676,12 @@ _gather() {
     echo "Starting gather step to aggregate per sample results"
 
     /usr/bin/time -v sudo bash TSO500_ruo/TSO500_RUO_LocalApp/TruSight_Oncology_500_RUO.sh \
-        --analysisFolder /home/dnanexus/out/Results \
+        --analysisFolder /home/dnanexus/out/gather \
         --runFolder /home/dnanexus/runfolder \
         --resourcesFolder /home/dnanexus/TSO500_ruo/TSO500_RUO_LocalApp/resources \
         --sampleSheet /home/dnanexus/$samplesheet_path \
-        --gather /home/dnanexus/out/DemultiplexOutput/ "${sample_output_dirs}" \
+        --gather /home/dnanexus/out/demultiplexOutput/ "${sample_output_dirs}" \
         --isNovaSeq 2>&1 | tee /home/dnanexus/gather_run.log
-
-    find out/Results -type f
 
     # final check it was successful
     if [[ $(grep "WorkflowFailedState" gather_run.log) ]]; then
@@ -621,7 +689,7 @@ _gather() {
         dx-jobutil-report-error "Gather step did not complete successfully"
     fi
 
-    mv gather_run.log /home/dnanexus/out/Results/gather_run.log
+    mv gather_run.log /home/dnanexus/out/gather/gather_run.log
 
     duration="$SECONDS"
     echo "Gather step completed in ${sample} in $(($duration / 60))m$(($duration % 60))s"
@@ -644,10 +712,10 @@ main() {
 
     mkdir -p /home/dnanexus/runfolder \
              /home/dnanexus/TSO500_ruo \
-             /home/dnanexus/out/DemultiplexOutput \
-             /home/dnanexus/out/Logs/ \
-             /home/dnanexus/out/Analysis \
-             /home/dnanexus/out/Results
+             /home/dnanexus/out/demultiplexOutput \
+             /home/dnanexus/out/logs/ \
+             /home/dnanexus/out/scatter \
+             /home/dnanexus/out/gather
 
     # download sample data (either tar files or fastqs)
     _get_input_files
@@ -708,6 +776,9 @@ main() {
         _gather
 
         echo "All workflows complete"
+
+        # format the scatter output directories for uploading
+        _format_output_directories
 
         # upload output files from gather step
         _upload_gather_output
