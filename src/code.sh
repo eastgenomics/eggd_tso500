@@ -269,8 +269,10 @@ _format_output_directories() {
         │   │   └── sample2
         │   │       ├── ...
     '''
+    echo "Formatting output directories"
     # take the sub directories from each samples outputs and move them into
     # the same level in /home/dnanexus/out/scatter/
+    set +x
     for sample in $sample_list; do
         # some files aren't in sample named sub directories that we can nicely just
         # move, make these consistent as the files aren't always named uniquely either
@@ -297,7 +299,9 @@ _format_output_directories() {
         # chuck away the empty directory
         mv "/home/dnanexus/out/scatter/${sample}_output" /tmp
     done
-
+    set -x
+    echo "Reformatted output directories for scatter samples:"
+    tree -d -L 2 /home/dnanexus/out/scatter/
 }
 
 
