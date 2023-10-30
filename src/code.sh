@@ -135,7 +135,7 @@ _parse_samplesheet() {
     pair_id_col=$(sed 's/,/\n/g' <<< $header_row | nl | grep 'Pair_ID' | cut -f1 | xargs)
 
     sample_rows=$(sed -e '1,/Sample_ID/ d' runfolder/SampleSheet.csv)
-    sample_list=$(sed -e  "s/\r//g" <<< "$sample_rows" | cut -d, -f $pair_id_col)
+    sample_list=$(sed -e  "s/\r//g" <<< "$sample_rows" | cut -d, -f $pair_id_col | sort | uniq)
     echo "Samples parsed from Pair_ID column in samplesheet: ${sample_list}"
 }
 
@@ -165,13 +165,13 @@ _modify_samplesheet() {
     pair_id_col=$(sed 's/,/\n/g' <<< $header_row | nl | grep 'Pair_ID' | cut -f1 | xargs)
 
     sample_rows=$(sed -e '1,/Sample_ID/ d' -e  "s/\r//g" runfolder/SampleSheet.csv)
-    sample_list=$(sed -e  "s/\r//g" <<< "$sample_rows" | cut -d, -f $pair_id_col)
+    sample_list=$(sed -e  "s/\r//g" <<< "$sample_rows" | cut -d, -f $pair_id_col | sort | uniq)
     echo "Original samples parsed from Pair_ID column in samplesheet: ${sample_list}"
 
     if [[ "$n_samples" ]]; then
         echo "Limiting analysis to ${n_samples} samples"
         sample_rows=$(sed "1,${n_samples}p;d" <<< "${sample_rows}")
-        sample_list=$(sed -e  "s/\r//g" <<< "$sample_rows" | cut -d, -f $pair_id_col)
+        sample_list=$(sed -e  "s/\r//g" <<< "$sample_rows" | cut -d, -f $pair_id_col | sort | uniq)
         echo "Samples to run analysis for: ${sample_list}"
     fi
 
@@ -200,7 +200,7 @@ _modify_samplesheet() {
         echo "-iinclude_samples specified: ${include_samples}"
         include=$(sed 's/,/|/g' <<< "$include_samples")
         sample_rows=$(awk '/'"$include"'/ {print $1}' <<< "$sample_rows")
-        sample_list=$(sed -e  "s/\r//g" <<< "$sample_rows" | cut -d, -f $pair_id_col)
+        sample_list=$(sed -e  "s/\r//g" <<< "$sample_rows" | cut -d, -f $pair_id_col | sort | uniq)
     fi
 
     if [[ "$exclude_samples" ]]; then
@@ -208,7 +208,7 @@ _modify_samplesheet() {
         echo -e "-iexclude_samples specified: ${exclude_samples}"
         exclude=$(sed 's/,/|/g' <<< "$exclude_samples")
         sample_rows=$(awk '!/'"$exclude"'/ {print $1}' <<< "$sample_rows")
-        sample_list=$(sed -e  "s/\r//g" <<< "$sample_rows" | cut -d, -f $pair_id_col)
+        sample_list=$(sed -e  "s/\r//g" <<< "$sample_rows" | cut -d, -f $pair_id_col | sort | uniq)
     fi
 
     # write out new samplesheet with specified rows
