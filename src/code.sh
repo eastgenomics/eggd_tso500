@@ -14,6 +14,7 @@ _get_tso_resources() {
     : '''
     Download and unpack the TSO500 resources zip file
     '''
+    # using ripunzip for parallelised zip unpacking
     sudo dpkg -i ripunzip_0.4.0_amd64.deb
 
     local zip_file=$(dx describe --json "$TSO500_ruo" | jq -r '.name')
@@ -126,15 +127,16 @@ _parse_samplesheet() {
     : '''
     Parse the sample names from the samplesheet into variable "sample_list"
 
-    If specified, can also optionally:
-        - exclude specified samples (-iexclude_samples)
-        - filter samplesheet to specific samples (-iinclude_samples)
-        - limit samplesheet to first n samples (-in_samples)
+    The Pair_ID column will be used over Sample_ID to ensure that matched
+    pair samples are analysed together and their outputs correctly combined
     '''
     # parse list of sample names from samplesheet
+    header_row=$(grep "Sample_ID" runfolder/SampleSheet.csv)
+    pair_id_col=$(sed 's/,/\n/g' <<< $header_row | nl | grep 'Pair_ID' | cut -f1 | xargs)
+
     sample_rows=$(sed -e '1,/Sample_ID/ d' runfolder/SampleSheet.csv)
-    sample_list=$(cut -d, -f1 <<< "$sample_rows")
-    echo "Samples parsed from samplesheet: ${sample_list}"
+    sample_list=$(sed -e  "s/\r//g" <<< "$sample_rows" | cut -d, -f $pair_id_col)
+    echo "Samples parsed from Pair_ID column in samplesheet: ${sample_list}"
 }
 
 
@@ -159,13 +161,17 @@ _modify_samplesheet() {
     echo "Modifying samplesheet"
     # parse original rows from samplesheet
     samplesheet_header=$(sed -n '1,/Sample_ID/ p' runfolder/SampleSheet.csv)
-    sample_rows=$(sed -e '1,/Sample_ID/ d' runfolder/SampleSheet.csv)
-    sample_list=$(cut -d, -f1 <<< "$sample_rows")
-    echo "Original samples parsed from samplesheet: ${sample_list}"
+    header_row=$(grep "Sample_ID" runfolder/SampleSheet.csv)
+    pair_id_col=$(sed 's/,/\n/g' <<< $header_row | nl | grep 'Pair_ID' | cut -f1 | xargs)
+
+    sample_rows=$(sed -e '1,/Sample_ID/ d' -e  "s/\r//g" runfolder/SampleSheet.csv)
+    sample_list=$(sed -e  "s/\r//g" <<< "$sample_rows" | cut -d, -f $pair_id_col)
+    echo "Original samples parsed from Pair_ID column in samplesheet: ${sample_list}"
 
     if [[ "$n_samples" ]]; then
         echo "Limiting analysis to ${n_samples} samples"
         sample_rows=$(sed "1,${n_samples}p;d" <<< "${sample_rows}")
+        sample_list=$(sed -e  "s/\r//g" <<< "$sample_rows" | cut -d, -f $pair_id_col)
         echo "Samples to run analysis for: ${sample_list}"
     fi
 
@@ -194,7 +200,7 @@ _modify_samplesheet() {
         echo "-iinclude_samples specified: ${include_samples}"
         include=$(sed 's/,/|/g' <<< "$include_samples")
         sample_rows=$(awk '/'"$include"'/ {print $1}' <<< "$sample_rows")
-        sample_list=$(cut -d, -f1 <<< "$sample_rows")
+        sample_list=$(sed -e  "s/\r//g" <<< "$sample_rows" | cut -d, -f $pair_id_col)
     fi
 
     if [[ "$exclude_samples" ]]; then
@@ -202,7 +208,7 @@ _modify_samplesheet() {
         echo -e "-iexclude_samples specified: ${exclude_samples}"
         exclude=$(sed 's/,/|/g' <<< "$exclude_samples")
         sample_rows=$(awk '!/'"$exclude"'/ {print $1}' <<< "$sample_rows")
-        sample_list=$(cut -d, -f1 <<< "$sample_rows")
+        sample_list=$(sed -e  "s/\r//g" <<< "$sample_rows" | cut -d, -f $pair_id_col)
     fi
 
     # write out new samplesheet with specified rows
@@ -212,6 +218,8 @@ _modify_samplesheet() {
     # overwrite global variable of samplesheet file ID with new modified
     # file to be passed to scatter jobs
     samplesheet=$(dx upload --brief runfolder/modified_SampleSheet.csv)
+
+    # ensure samplenames don't end up with trailing new lines
 
     echo -e "New samplesheet:\n$(cat runfolder/modified_SampleSheet.csv)"
 }
@@ -601,7 +609,8 @@ _scatter() {
 
     mkdir -p /home/dnanexus/runfolder \
              /home/dnanexus/TSO500_ruo \
-             /home/dnanexus/demultiplexOutput/$sample \
+             /home/dnanexus/demultiplexOutput/ \
+             /home/dnanexus/fastqs/ \
              /home/dnanexus/out/logs \
              /home/dnanexus/out/scatter
 
@@ -609,27 +618,22 @@ _scatter() {
 
     # download the sample fastqs into directory for local app
     SECONDS=0
-    echo "Finding fastqs for sample ${sample} from fastqs provided to job"
-    set +x  # suppress this going to the logs as its long
-    details=$(xargs -n1 -P${THREADS} dx describe --json --verbose <<< $fastqs)
-    names=$(jq -r '.name' <<< $details)
-    sample_fqs=$(jq -r "select(.name | startswith(\"${sample}_\")) | .id" <<< $details)
-    set -x
-
-    if [[ -z $sample_fqs ]]; then
-        echo "ERROR: no fastqs found for sample ${sample} from provided fastqs:"
-        sed 's/ /\n/g' <<< $names  # output to separate lines for nicer log viewing
-        exit 1
-    fi
-
     echo "Total fastqs passed: $(wc -w <<< $fastqs)"
-    echo "Total fastqs found for sample: $(wc -w <<< $sample_fqs)"
-    echo "Sample fastqs parsed: ${sample_fqs}"
-    echo $sample_fqs | xargs -n1 -P${THREADS} -I{} sh -c \
-        "dx download --no-progress -o /home/dnanexus/demultiplexOutput/$sample/ {}"
+
+    echo $fastqs | xargs -n1 -P${THREADS} -I{} sh -c \
+        "dx download --no-progress -o /home/dnanexus/fastqs/ {}"
 
     duration=$SECONDS
     echo "Downloaded fastqs in $(($duration / 60))m$(($duration % 60))s"
+
+    # local app requires fastqs be in sample sub directories
+    set +x
+    for fq in $(find fastqs -type f -printf '%f\n'); do
+        sample_name=$(sed 's/_S[0-9]*_L[0-9]*_R[0-9]*_001.fastq.gz//' <<< "$fq")
+        mkdir -p /home/dnanexus/demultiplexOutput/$sample_name
+        mv fastqs/$fq /home/dnanexus/demultiplexOutput/$sample_name/
+    done
+    set -x
 
     # download and unpack local app resources
     _get_tso_resources
