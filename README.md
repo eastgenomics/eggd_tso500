@@ -58,105 +58,100 @@ Other demultiplexing files (i.e logs etc) are uploaded and attributed to the `de
 The general output directory structure is (n.b. per sample directories / files have been limited to one for brevity):
 ```
 output_folder/
-├── Analysis
-│   ├── sample1_output
-│   │   ├── Logs_Intermediates
-│   │   │   ├── Annotation
-│   │   │   │   └── sample1
-│   │   │   │       ├── sample1_SmallVariants_Annotated.json.gz
-│   │   │   │       └── sample1_SmallVariants_Annotated.json.gz.jsi
-│   │   │   ├── DnaQCMetrics
-│   │   │   │   └── sample1
-│   │   │   │       ├── sample1.aligned.metrics.json
-│   │   │   │       ├── sample1.cnv.metrics.json
-│   │   │   │       ├── sample1.collapsed.metrics.json
-│   │   │   │       └── sample1.stitched.metrics.json
-│   │   │   ├── Contamination
-│   │   │   │   └── sample1
-│   │   │   │       └── sample1.contamination.json
-│   │   │   ├── StitchedRealigned
-│   │   │   │   └── sample1
-│   │   │   │       ├── GeminiMultiLogs
-│   │   │   │       │   └── GeminiMultiOptions.used.json
-│   │   │   │       ├── sample1.bam
-│   │   │   │       └── sample1.bam.bai
-│   │   │   ├── VariantMatching
-│   │   │   │   └── sample1
-│   │   │   │       └── sample1_MergedSmallVariants.genome.vcf.gz
-│   │   │   ├── PhasedVariants
-│   │   │   │   └── sample1
-│   │   │   │       ├── PsaraLogs
-│   │   │   │       │   └── PsaraOptions.used.json
-│   │   │   │       ├── ScyllaLogs
-│   │   │   │       │   └── ScyllaOptions.used.json
-│   │   │   │       ├── sample1.Complex.vcf.gz
-│   │   │   │       └── sample1_SmallVariants.filtered.genome.vcf.gz
-│   │   │   ├── Msi
-│   │   │   │   └── sample1
-│   │   │   │       ├── sample1.msi.json
-│   │   │   │       ├── diffs.txt
-│   │   │   │       └── tumor.dist
-│   │   │   ├── DnaRealignment
-│   │   │   │   └── sample1
-│   │   │   │       ├── sample1.bam
-│   │   │   │       └── sample1.bam.bai
-│   │   │   ├── VariantCaller
-│   │   │   │   ├── PiscesLogs
-│   │   │   │   │   └── PiscesOptions.used.json
-│   │   │   │   ├── sample1
-│   │   │   │   │   ├── sample1.filtered.genome.vcf.gz
-│   │   │   │   │   └── sample1.genome.vcf.gz
-│   │   │   │   └── PsaraLogs
-│   │   │   │       └── PsaraOptions.used.json
-│   │   │   ├── SmallVariantFilter
-│   │   │   │   └── sample1
-│   │   │   │       ├── sample1_SmallVariants.genome.vcf.errorRates
-│   │   │   │       └── sample1_SmallVariants.genome.vcf.gz
-│   │   │   ├── CollapsedReads
-│   │   │   │   └── sample1
-│   │   │   │       ├── sample1_metrics.json
-│   │   │   │       ├── sample1_R1.fastq.gz
-│   │   │   │       └── sample1_R2.fastq.gz
-│   │   │   ├── CnvCaller
-│   │   │   │   └── sample1
-│   │   │   │       ├── sample1_CopyNumberVariants.vcf.gz
-│   │   │   │       ├── sample1_foldChange.tsv
-│   │   │   │       ├── sample1_normalizedBinCount.tsv
-│   │   │   │       ├── sample1_rawBinCount.tsv
-│   │   │   │       └── Craft_6735_20231026_113343.txt
-│   │   │   ├── SamplesheetValidation
-│   │   │   │   └── 20231026_224827_SampleSheet.csv
-│   │   │   ├── DnaAlignment
-│   │   │   │   └── sample1
-│   │   │   │       ├── sample1.bam
-│   │   │   │       └── sample1.bam.bai
-│   │   │   ├── Tmb
-│   │   │   │   └── sample1
-│   │   │   │       ├── sample1.tmb.json
-│   │   │   │       └── sample1_TMB_Trace.tsv
-│   │   │   ├── CombinedVariantOutput
-│   │   │   │   └── sample1
-│   │   │   │       └── sample1_CombinedVariantOutput.tsv
-│   │   │   ├── SampleAnalysisResults
-│   │   │   │   └── sample1_SampleAnalysisResults.json
-│   │   │   ├── RnaAlignment
-│   │   │   │   ├── starLoad.Aligned.out.sam
-│   │   │   │   └── starUnload.Aligned.out.sam
-│   │   │   ├── MetricsOutput
-│   │   │   │   └── MetricsOutput.tsv
-│   │   │   └── MergedAnnotation
-│   │   │       └── sample1
-│   │   │           ├── sample1_MergedVariants_Annotated.json.gz
-│   │   │           └── sample1_MergedVariants_Annotated.json.gz.jsi
-│   │   ├── inputs.json
-│   │   └── SampleSheet.csv
-│   ├── sample1_output
-│   │   ├── Logs_Intermediates
-│   │   │   ├── Annotation
-            ...
-│       ├── inputs.json
-│       └── SampleSheet.csv
-├── Results
+├── scatter
+│   ├── Annotation
+│   │   └── sample1
+│   │       ├── sample1_SmallVariants_Annotated.json.gz
+│   │       └── sample1_SmallVariants_Annotated.json.gz.jsi
+│   ├── DnaQCMetrics
+│   │   └── sample1
+│   │       ├── sample1.aligned.metrics.json
+│   │       ├── sample1.cnv.metrics.json
+│   │       ├── sample1.collapsed.metrics.json
+│   │       └── sample1.stitched.metrics.json
+│   ├── Contamination
+│   │   └── sample1
+│   │       └── sample1.contamination.json
+│   ├── StitchedRealigned
+│   │   └── sample1
+│   │       ├── GeminiMultiLogs
+│   │       │   └── GeminiMultiOptions.used.json
+│   │       ├── sample1.bam
+│   │       └── sample1.bam.bai
+│   ├── VariantMatching
+│   │   └── sample1
+│   │       └── sample1_MergedSmallVariants.genome.vcf.gz
+│   ├── PhasedVariants
+│   │   └── sample1
+│   │       ├── PsaraLogs
+│   │       │   └── PsaraOptions.used.json
+│   │       ├── ScyllaLogs
+│   │       │   └── ScyllaOptions.used.json
+│   │       ├── sample1.Complex.vcf.gz
+│   │       └── sample1_SmallVariants.filtered.genome.vcf.gz
+│   ├── Msi
+│   │   └── sample1
+│   │       ├── sample1.msi.json
+│   │       ├── diffs.txt
+│   │       └── tumor.dist
+│   ├── DnaRealignment
+│   │   └── sample1
+│   │       ├── sample1.bam
+│   │       └── sample1.bam.bai
+│   ├── VariantCaller
+│   │   ├── sample1
+│   │   │   ├── sample1.filtered.genome.vcf.gz
+│   │   │   └── sample1.genome.vcf.gz
+│   │   │   └── PiscesOptions.used.json
+│   │       └── PsaraOptions.used.json
+│   ├── SmallVariantFilter
+│   │   └── sample1
+│   │       ├── sample1_SmallVariants.genome.vcf.errorRates
+│   │       └── sample1_SmallVariants.genome.vcf.gz
+│   ├── CollapsedReads
+│   │   └── sample1
+│   │       ├── sample1_metrics.json
+│   │       ├── sample1_R1.fastq.gz
+│   │       └── sample1_R2.fastq.gz
+│   ├── CnvCaller
+│   │   └── sample1
+│   │       ├── sample1_CopyNumberVariants.vcf.gz
+│   │       ├── sample1_foldChange.tsv
+│   │       ├── sample1_normalizedBinCount.tsv
+│   │       ├── sample1_rawBinCount.tsv
+│   │       └── Craft_6735_20231026_113343.txt
+│   ├── SamplesheetValidation
+|   |   └── sample1
+│   │       └── 20231026_224827_SampleSheet.csv
+│   ├── DnaAlignment
+│   │   └── sample1
+│   │       ├── sample1.bam
+│   │       └── sample1.bam.bai
+│   ├── Tmb
+│   │   └── sample1
+│   │       ├── sample1.tmb.json
+│   │       └── sample1_TMB_Trace.tsv
+│   ├── CombinedVariantOutput
+│   │   └── sample1
+│   │       └── sample1_CombinedVariantOutput.tsv
+│   ├── SampleAnalysisResults
+|   |   └── sample1
+│   │       └── sample1_SampleAnalysisResults.json
+│   ├── RnaAlignment
+|   |   └── sample1
+│   │       ├── starLoad.Aligned.out.sam
+│   │       └── starUnload.Aligned.out.sam
+│   ├── MetricsOutput
+|   |   └── sample1
+│   │       └── MetricsOutput.tsv
+│   |── MergedAnnotation
+│   │   └── sample1
+│   |       ├── sample1_MergedVariants_Annotated.json.gz
+│   |       └── sample1_MergedVariants_Annotated.json.gz.jsi
+│   |── inputs.json
+│   └── SampleSheet.csv
+|
+├── gather
 │   ├── Logs_Intermediates
 │   │   ├── CombinedVariantOutput
 │   │   │   ├── sample1
@@ -216,7 +211,7 @@ output_folder/
 ...
 │   ├── inputs.json
 │   └── SampleSheet.csv
-├── DemultiplexOutput
+├── demultiplexOutput
 │   ├── Logs_Intermediates
 │   │   ├── FastqGeneration
 │   │   │   ├── Reports
@@ -278,7 +273,7 @@ output_folder/
 │   ├── receipt
 │   ├── SampleSheet.csv
 │   └── trusight-oncology-500-ruo_ruo-2.2.0.12_20231026-232354.log
-├── Logs
+├── logs
 │   ├── sample1_cromwell_executions.tar.gz
 │   ├── sample1_scatter_logs.tar.gz
 ...
@@ -290,7 +285,9 @@ output_folder/
 
 ## Notes
 - Samplesheet input is optional, if not specified the analysis app looks for the samplesheet in top level of runfolder
-- When running in scatter / gather mode, demultiplexing via the local app must always be first performed (i.e it can't be started from previously demultiplexed data and reusing fastqs.) To achieve the equivalent, `-iupload_demultiplex_output=false` may be specified to not upload the output of demultiplexing from the job. When used in conjunction with `-iinclude_samples="sample1"`, this would effectively just run and output data for the given sample(s) as if the local app were just run from fastqs for a single sample.
+- When running in scatter / gather mode, demultiplexing via the local app must always be first performed (i.e it can't be started from previously demultiplexed data and reusing fastqs) To achieve the equivalent, `-iupload_demultiplex_output=false` may be specified to not upload the output of demultiplexing from the job. When used in conjunction with `-iinclude_samples="sample1"`, this would effectively just run and output data for the given sample(s) as if the local app were just run from fastqs for a single sample
+- Jobs are launched per sample parsed from the 'Pair_ID' column, this means if the samplesheet is formatted for running in paired analysis mode, the fastqs for all samples for the given pair ID will be used for the analysis
+
 
 
 ## This app was created by East Genomics GLH
