@@ -61,9 +61,17 @@ _get_scatter_job_outputs() {
     from here and use the ids to filter down the files in the output
     folder to ensure we keep the same directory structure
     '''
-    SECONDS=0
     echo "Downloading scatter job output"
 
+    # wait 60 seconds before trying to download all files, dx download does
+    # not retry downloading files that haven't closed yet and just skips
+    # them (which is not ideal), therefore we will just wait as it should
+    # only take a few seconds for this to happen until dxpy is updated to
+    # actually do proper retries like sane people
+    echo "Waiting 60 seconds to ensure all files are hopefully in a closed state..."
+    sleep 60
+
+    SECONDS=0
     set +x  # suppress this going to the logs as its long
 
     # files from sub jobs will be in the container- project context of the
@@ -270,8 +278,7 @@ _format_output_directories() {
         │   │       ├── ...
     '''
     echo "Formatting output directories"
-    # take the sub directories from each samples outputs and move them into
-    # the same level in /home/dnanexus/out/scatter/
+
     set +x
     for sample in $sample_list; do
         # some files aren't in sample named sub directories that we can nicely just
@@ -300,6 +307,7 @@ _format_output_directories() {
         mv "/home/dnanexus/out/scatter/${sample}_output" /tmp
     done
     set -x
+
     echo "Reformatted output directories for scatter samples:"
     tree -d -L 2 /home/dnanexus/out/scatter/
 }
