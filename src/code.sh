@@ -314,8 +314,7 @@ _format_output_directories() {
     done
     set -x
 
-    echo "Reformatted output directories for scatter samples:"
-    tree -d -L 2 /home/dnanexus/out/scatter/
+    echo "Reformatted output directories for scatter samples"
 }
 
 
