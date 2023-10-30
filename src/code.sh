@@ -719,6 +719,8 @@ main() {
     Main entry point for the app, general outline of behaviour:
 
     - download and unpack run data and TSO500 resources zip
+    - parse samplesheet and (optionally) modify it for including / \
+        excluding samples
     - run demultiplexing and upload output
     - call _scatter function to run sub job of analysis per sample
     - download all outputs from _scatter jobs
