@@ -30,7 +30,7 @@ _get_tso_resources() {
 }
 
 
-_get_input_files() {
+_get_run_data() {
     : '''
     Download all input tar files
 
@@ -39,9 +39,9 @@ _get_input_files() {
     '''
     SECONDS=0
     echo "Downloading tar files"
-    
+
     # drop the $dnanexus_link from the file IDs
-    file_ids=$(grep -Po  "file-[\d\w]+" <<< "${input_files[@]}")
+    file_ids=$(grep -Po  "file-[\d\w]+" <<< "${run_tar_data[@]}")
 
     echo "$file_ids" | xargs -P ${THREADS} -n1 -I{} sh -c \
         "dx cat {} | tar -I pigz -xf - --no-same-owner --absolute-names -C /home/dnanexus/runfolder"
@@ -146,7 +146,7 @@ _modify_samplesheet() {
         - exclude specified samples (-iexclude_samples)
         - filter samplesheet to specific samples (-iinclude_samples)
         - limit samplesheet to first n samples (-in_samples)
-    
+
     The modified samplesheet will be uploaded to the output
     folder as "modified_SampleSheet.csv" to be able to pass
     the file ID to the scatter job(s).
@@ -165,13 +165,19 @@ _modify_samplesheet() {
 
     if [[ "$n_samples" ]]; then
         echo "Limiting analysis to ${n_samples} samples"
-        sample_rows=$(sed "2,${n_samples}p;d" <<< "${sample_rows}")
+        sample_rows=$(sed "1,${n_samples}p;d" <<< "${sample_rows}")
         echo "Samples to run analysis for: ${sample_list}"
+    fi
+
+    if [[ "$include_samples" ]] && [[ "$exclude_samples" ]]; then
+        echo "Both -iinclude_samples and -iexclude samples specified but"
+        echo "they are mutually exclude. Please only specify one."
+        dx-jobutil-report-error "Invalid options specified"
     fi
 
     if [[ "$include_samples" ]] || [[ "$exclude_samples" ]]; then
         # first ensure any samples specified to include or exclude are
-        # a valid sample names from our samplesheet
+        # valid sample names from our samplesheet
         samples=$(sed -e 's/^,\|,$//' <<< "${include_samples},${exclude_samples}")
 
         invalid=$(while read -d',' -r line; do \
@@ -234,7 +240,7 @@ _calculate_total_fq_size() {
         | awk '{ sum[$1] += $2 } END { for (i in sum) printf "\t%s %.2fGB\n", i, sum[i]/1024/1024/1024 }' \
         | sort -k2 -n)
     set -x
-    
+
     echo -e "Total fastq sizes per sample:\n${sizes}"
 }
 
@@ -246,7 +252,7 @@ _format_output_directories() {
     and create one directory per sample inside of here.
 
     Default directory structure downloaded from all scatter jobs:
-    
+
         ├── scatter
         |    ├── sample1_output
         |    │   ├── Logs_Intermediates
@@ -366,7 +372,7 @@ _upload_scatter_output() {
         -name "*.log" -o \
         -name "*.out" -o \
         -name "*.stderr" -o \
-        -name "*.stdout" -o\
+        -name "*.stdout" -o \
         -name "receipt")
 
     mkdir all_logs && xargs -I{} mv {} all_logs/ <<< "$logs"
@@ -382,7 +388,7 @@ _upload_scatter_output() {
     # upload rest of files
     find /home/dnanexus/out/ -type f | xargs -P ${UPLOAD_THREADS} -n1 -I{} bash -c \
         "_upload_single_file {} analysis_folder false"
-    
+
     duration="$SECONDS"
     echo "Uploading completed in ${sample} in $(($duration / 60))m$(($duration % 60))s"
 }
@@ -403,7 +409,7 @@ _upload_gather_output() {
         - annotated JSON (Nirvana annotated variants; from gather/Results)
         - CombinedVariantOutput (from gather/Results)
         - CopyNumberVariants.vcf (from gather/Results)
-    
+
     The rest of the per sample analysis and gather step files are then uploaded
     in parallel to the "analysis_folder" output field.
 
@@ -555,7 +561,7 @@ _demultiplex() {
         --sampleSheet /home/dnanexus/$samplesheet_path \
         --demultiplexOnly \
         --isNovaSeq
-    
+
     duration=$SECONDS
 
     echo "Demultiplexing completed in $(($duration / 60))m$(($duration % 60))s"
@@ -622,10 +628,10 @@ _scatter() {
     echo "Sample fastqs parsed: ${sample_fqs}"
     echo $sample_fqs | xargs -n1 -P${THREADS} -I{} sh -c \
         "dx download --no-progress -o /home/dnanexus/demultiplexOutput/$sample/ {}"
-    
+
     duration=$SECONDS
     echo "Downloaded fastqs in $(($duration / 60))m$(($duration % 60))s"
-    
+
     # download and unpack local app resources
     _get_tso_resources
 
@@ -640,7 +646,7 @@ _scatter() {
             --sampleSheet /home/dnanexus/SampleSheet.csv \
             --sampleOrPairIDs "$sample" \
             ${options} 2>&1 | tee /home/dnanexus/${sample}_scatter_stdout.txt
-    
+
         echo scatter complete
     } || {
         # some form of error occured in running that raised non-zero exit code
@@ -711,7 +717,7 @@ _gather() {
 main() {
     : '''
     Main entry point for the app, general outline of behaviour:
-    
+
     - download and unpack run data and TSO500 resources zip
     - run demultiplexing and upload output
     - call _scatter function to run sub job of analysis per sample
@@ -730,7 +736,7 @@ main() {
              /home/dnanexus/out/gather
 
     # download sample data (either tar files or fastqs)
-    _get_input_files
+    _get_run_data
 
     # download, unpack and load TSO500 docker image & resources
     _get_tso_resources

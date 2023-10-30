@@ -16,8 +16,8 @@ Runs the Illumina TSO500 local analysis app.
 - `analysis_options` (`str`) -  a string which can be passed to the ruo command line
 - `isNovaSeq` (`bool`; default: true) - passes the `-isNovaSeq` flag to the TSO500 local app for running on NovaSeq data
 - `scatter_instance` (`str`): DNAnexus instance type to use for the per sample analysis (default: `mem1_ssd1_v2_x36`)
-- `include_samples` (`str`) - comma separated string of samples to run analyses for
-- `exclude_samples` (`str`) - comma separated string of samples to NOT run analyses for
+- `include_samples` (`str`) - comma separated string of samples to run analyses for (mutually exclusive with `exclude_samples`)
+- `exclude_samples` (`str`) - comma separated string of samples to NOT run analyses for (mutually exclusive with `include_samples`)
 - `n_samples` (`int`) - maximum number of samples from samplesheet to run analysis on (this will take the first n sample rows from the samplesheet)
 
 ## How does this app work? 
