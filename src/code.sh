@@ -219,8 +219,6 @@ _modify_samplesheet() {
     # file to be passed to scatter jobs
     samplesheet=$(dx upload --brief runfolder/modified_SampleSheet.csv)
 
-    # ensure samplenames don't end up with trailing new lines
-
     echo -e "New samplesheet:\n$(cat runfolder/modified_SampleSheet.csv)"
 }
 
