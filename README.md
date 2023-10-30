@@ -10,20 +10,22 @@ Runs the Illumina TSO500 local analysis app.
 - `input_files` (`array:files`) - raw sequencing data in tar files
 
 ### Optional
-- `samplesheet` (`file`) for the run if not present in the tarred inputs
-- `demultiplex_only` (`bool`) - flag to only demultiplex the runfolder
+- `samplesheet` (`file`) - samplesheet to use for demultiplexing and analysis, will use the one in the run data if not provided
+- `demultiplex_only` (`bool`) - flag to demultiplex a runfolder and upload the fastq and log files
 - `upload_demultiplex_output` (`bool`; default: true): controls if to upload the demultiplexing output files
 - `analysis_options` (`str`) -  a string which can be passed to the ruo command line
 - `isNovaSeq` (`bool`; default: true) - passes the `-isNovaSeq` flag to the TSO500 local app for running on NovaSeq data
-- `scatter_instance` (`str`): DNAnexus instance type to use for the per sample analysis
+- `scatter_instance` (`str`): DNAnexus instance type to use for the per sample analysis (default: `mem1_ssd1_v2_x36`)
 - `include_samples` (`str`) - comma separated string of samples to run analyses for
 - `exclude_samples` (`str`) - comma separated string of samples to NOT run analyses for
+- `n_samples` (`int`) - maximum number of samples from samplesheet to run analysis on (this will take the first n sample rows from the samplesheet)
 
 ## How does this app work? 
 The app runs the TSO500 local app in the 'scatter / gather' mode (explained on [page 9 here][user-guide]), this works by splitting off the per sample analysis into separate sub jobs in parallel and then combining the output in the parent job to produce the final results. This greatly speeds up analysis vs running the local app sequentially on all samples. The general outline is as follows:
 
 - download and unpack the TSO500 resources zip file
 - download and unpack the run data tar files
+- parse samplesheet and (optionally) include/exclude sample rows if `-iinclude_samples` or `-iexclude_samples` specified
 - run demultiplexing
 - launch sub jobs per sample to run the initial analysis
 - hold parent job until all scatter jobs complete

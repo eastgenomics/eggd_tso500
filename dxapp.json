@@ -31,8 +31,8 @@
       "group": "files"
     },
     {
-      "name": "input_files",
-      "label": "input files",
+      "name": "run_tar_data",
+      "label": "run tar data",
       "help": "tar files of runfolder containing raw sequencing data",
       "class": "array:file",
       "patterns": ["*.tar.gz"],
@@ -42,7 +42,7 @@
     {
       "name": "samplesheet",
       "label": "samplesheet",
-      "help": "The SampleSheet used for demultiplexing",
+      "help": "Samplesheet to use for demultiplexing and analysis",
       "class": "file",
       "optional": true,
       "patterns": ["*.csv"],
@@ -59,7 +59,7 @@
     {
       "name": "scatter_instance",
       "label": "scatter instance",
-      "help": "instance type to use for scatter sub jobs",
+      "help": "instance type to use for scatter sub jobs (default: mem1_ssd1_v2_x36)",
       "class": "string",
       "default": "mem1_ssd1_v2_x36",
       "group": "options"
@@ -75,14 +75,14 @@
     {
       "name": "upload_demultiplex_output",
       "label": "upload demultiplex output",
-      "help": "(Optional) control if to upload output from demultiplexing",
+      "help": "(Optional) controls whether demultiplexed files are retained (true) or discarded (false)",
       "class": "boolean",
       "default": true,
       "group": "options"
     },
     {
       "name": "demultiplex_only",
-      "label": "demultiplex Only",
+      "label": "demultiplex only",
       "help": "(Optional) flag to demultiplex a runfolder and upload the fastq files",
       "class": "boolean",
       "default": false,
@@ -107,7 +107,7 @@
     {
       "name": "n_samples",
       "label": "no. samples",
-      "help": "number of samples to limit running analysis for",
+      "help": "maximum number of samples from samplesheet to run analysis on (this will take the first n sample rows from the samplesheet)",
       "class": "int",
       "optional": true,
       "group": "testing"
@@ -177,7 +177,8 @@
       "name": "annotation",
       "label": "annotation",
       "class": "array:file",
-      "optional": true
+      "optional": true,
+      "help": "Nirvana annotated variants in JSON format"
     },
     {
       "name": "cvo",
@@ -190,13 +191,13 @@
       "name": "metricsOutput",
       "label": "MetricsOutput",
       "class": "file",
-      "help": "MetricsOuput.tsv file",
+      "help": "Run level MetricsOuput.tsv file",
       "optional": true
     },
     {
       "name": "analysis_folder",
       "label": "analysis_folder",
-      "help": "All files within the analysis folder.",
+      "help": "All other files within the analysis folder.",
       "class": "array:file",
       "optional": true
     },
