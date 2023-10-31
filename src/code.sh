@@ -624,8 +624,8 @@ _scatter() {
 
     # filter down all fastqs to just those for the given sample(s)
     all_sample_fqs=""
-    for sample in $sample_ids; do
-        fqs=$(jq -r "select(.name | startswith(\"${sample}_\")) | .id" <<< $details)
+    for id in $sample_ids; do
+        fqs=$(jq -r "select(.name | startswith(\"${id}_\")) | .id" <<< $details)
         all_sample_fqs+="${fqs} "
     done
 
