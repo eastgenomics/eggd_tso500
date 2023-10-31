@@ -37,20 +37,21 @@ The app runs the TSO500 local app in the 'scatter / gather' mode (explained on [
 
 This outputs the full TSO500 local app, including all analysis files and intermediate logs. Some of the sample analysis files are first uploaded to specific fields in the output spec for the app, these include:
 
-| Field           	| Type  	| Path                                                    	| Notes                                                        	|
-|-----------------	|-------	|---------------------------------------------------------	|--------------------------------------------------------------	|
-| `fastqs`        	| FASTQ 	| `/DemultiplexOutput/Logs_Intermediates/FastqGeneration` 	| The FASTQs as output from bclconvert                         	|
-| `dna_bams`      	| BAM   	| `/Analysis/*/Logs_Intermediates/StitchedRealigned/`     	| The 'final' BAM file upon which variant calling is performed 	|
-| `dna_bam_index` 	| BAI   	| `/Analysis/*/Logs_Intermediates/StitchedRealigned/`     	| Index of the above BAM                                       	|
-| `rna_bam`       	| BAM   	| `/Analysis/*/Logs_Intermediates/RnaAlignment/*`         	| Downsampled and trimmed BAM aligned by STAR aligner          	|
-| `rna_bam_index` 	| BAI   	| `/Analysis/*/Logs_Intermediates/RnaAlignment/*`         	| Index of the above BAM                                       	|
-| `msi_metrics`   	| JSON  	| `/Analysis/*/Logs_Intermediates/Msi/*`                  	| MSI metrics in JSON format                                   	|
-| `tmb_metrics`   	| JSON  	| `/Analysis/*/Logs_Intermediates/Tmb/*`                  	| TMB metrics in JSON format                                   	|
-| `gvcfs`         	| VCF   	| `/Results/Results/*/*`                                  	| Genome VCF from the merging step                             	|
-| `annotation`    	| JSON  	| `/Results/Results/*/*`                                  	| Nirvana annotated variant JSON file                          	|
-| `cvo`           	| TSV   	| `/Results/Results/*/*`                                  	| CombinedVariantOutput TSV file                               	|
-| `cnv_vcfs`      	| VCF   	| `/Results/Results/*/*`                                  	| Final CNV VCF from Results directory                         	|
-| `metricsOutput` 	| TSV   	| `/Results/Results/`                                     	| Final MetricsOutput TSV file for the run                     	|
+| Field           	    | Type  	| Path                                                    	| Notes                                                        	|
+|---------------------  |-------	|---------------------------------------------------------	|--------------------------------------------------------------	|
+| `fastqs`        	    | FASTQ 	| `/DemultiplexOutput/Logs_Intermediates/FastqGeneration` 	| The FASTQs as output from bclconvert                         	|
+| `dna_bams`      	    | BAM   	| `/Analysis/*/Logs_Intermediates/StitchedRealigned/`     	| The 'final' BAM file upon which variant calling is performed 	|
+| `dna_bam_index` 	    | BAI   	| `/Analysis/*/Logs_Intermediates/StitchedRealigned/`     	| Index of the above BAM                                       	|
+| `rna_bam`       	    | BAM   	| `/Analysis/*/Logs_Intermediates/RnaAlignment/*`         	| Downsampled and trimmed BAM aligned by STAR aligner          	|
+| `rna_bam_index` 	    | BAI   	| `/Analysis/*/Logs_Intermediates/RnaAlignment/*`         	| Index of the above BAM                                       	|
+| `msi_metrics`   	    | JSON  	| `/Analysis/*/Logs_Intermediates/Msi/*`                  	| MSI metrics in JSON format                                   	|
+| `tmb_metrics`   	    | JSON  	| `/Analysis/*/Logs_Intermediates/Tmb/*`                  	| TMB metrics in JSON format                                   	|
+| `gvcfs`         	    | VCF   	| `/Results/Results/*/*`                                  	| Genome VCF from the merging step                             	|
+| `annotation`    	    | JSON  	| `/Results/Results/*/*`                                  	| Nirvana annotated variant JSON file                          	|
+| `cvo`           	    | TSV   	| `/Results/Results/*/*`                                  	| CombinedVariantOutput TSV file                               	|
+| `cnv_vcfs`      	    | VCF   	| `/Results/Results/*/*`                                  	| Final CNV VCF from Results directory                         	|
+| `splice_variants_vcf` | VCF       | `/Results/Results/*/*`                                    | VCF of splice variants from RNA analysis                      |
+| `metricsOutput` 	    | TSV   	| `/Results/Results/`                                     	| Final MetricsOutput TSV file for the run                     	|
 
 
 Other demultiplexing files (i.e logs etc) are uploaded and attributed to the `demultiplex_logs` output field, and all other analysis files are uploaded and attributed to the `analysis_folder` output field.
