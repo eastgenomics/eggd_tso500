@@ -399,7 +399,7 @@ _upload_scatter_output() {
 }
 
 
-_upload_gather_output() {
+_upload_final_output() {
     : '''
     Upload the final output files
 
@@ -820,7 +820,7 @@ main() {
         _format_output_directories
 
         # upload output files from gather step
-        _upload_gather_output
+        _upload_final_output
     fi
 
     echo "All steps complete"
