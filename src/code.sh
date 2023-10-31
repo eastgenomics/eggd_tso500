@@ -476,6 +476,7 @@ _upload_gather_output() {
         "*/gather/Results/*/*Annotated.json.gz annotation"
         "*/gather/Results/*/*CombinedVariantOutput.tsv cvo"
         "*/gather/Results/*/*CopyNumberVariants.vcf cnv_vcfs"
+        "*/gather/Results/*/*SpliceVariants.vcf splice_variants_vcf"
     )
 
     # upload each of the sets of distinct output files

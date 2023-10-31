@@ -162,6 +162,12 @@
       "optional": true
     },
     {
+      "name": "splice_variants_vcfs",
+      "label": "splice variants VCFs",
+      "class": "array:file",
+      "optional": true
+    },
+    {
       "name": "msi_metrics",
       "label": "MSI metrics",
       "class": "array:file",
