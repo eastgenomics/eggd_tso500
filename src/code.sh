@@ -476,7 +476,7 @@ _upload_gather_output() {
         "*/gather/Results/*/*Annotated.json.gz annotation"
         "*/gather/Results/*/*CombinedVariantOutput.tsv cvo"
         "*/gather/Results/*/*CopyNumberVariants.vcf cnv_vcfs"
-        "*/gather/Results/*/*SpliceVariants.vcf splice_variants_vcf"
+        "*/gather/Results/*/*SpliceVariants.vcf splice_variants_vcfs"
     )
 
     # upload each of the sets of distinct output files
@@ -615,17 +615,32 @@ _scatter() {
 
     dx download "$samplesheet" -o "SampleSheet.csv"
 
-    # download the sample fastqs into directory for local app
     SECONDS=0
-    echo "Total fastqs passed: $(wc -w <<< $fastqs)"
 
-    echo $fastqs | xargs -n1 -P${THREADS} -I{} sh -c \
+    set +x
+    # get Sample IDs for sample(s) against given Pair IDs
+    sample_ids=$(grep "$sample" SampleSheet.csv | cut -d, -f1)
+    details=$(xargs -n1 -P${THREADS} dx describe --json --verbose <<< $fastqs)
+
+    # filter down all fastqs to just those for the given sample(s)
+    all_sample_fqs=""
+    for sample in $sample_ids; do
+        fqs=$(jq -r "select(.name | startswith(\"${sample}_\")) | .id" <<< $details)
+        all_sample_fqs+="${fqs} "
+    done
+
+    # download the sample fastqs into directory for local app
+    echo $all_sample_fqs | xargs -n1 -P${THREADS} -I{} sh -c \
         "dx download --no-progress -o /home/dnanexus/fastqs/ {}"
+    set -x
 
     duration=$SECONDS
+    echo "Total fastqs passed: $(wc -w <<< $fastqs)"
+    echo "Total fastqs for sample(s): $(wc -w <<< $all_sample_fqs)"
     echo "Downloaded fastqs in $(($duration / 60))m$(($duration % 60))s"
 
     # local app requires fastqs be in sample sub directories
+    echo "Moving fastqs to per sample directories from fastqs/ -> demultiplexOutput/"
     set +x
     for fq in $(find fastqs -type f -printf '%f\n'); do
         sample_name=$(sed 's/_S[0-9]*_L[0-9]*_R[0-9]*_001.fastq.gz//' <<< "$fq")
@@ -633,6 +648,8 @@ _scatter() {
         mv fastqs/$fq /home/dnanexus/demultiplexOutput/$sample_name/
     done
     set -x
+
+    echo -e "Fastqs downloaded:\n $(find /home/dnanexus/demultiplexOutput/ -type f)"
 
     # download and unpack local app resources
     _get_tso_resources
