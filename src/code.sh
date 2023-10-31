@@ -395,7 +395,7 @@ _upload_scatter_output() {
         "_upload_single_file {} analysis_folder false"
 
     duration="$SECONDS"
-    echo "Uploading completed in ${sample} in $(($duration / 60))m$(($duration % 60))s"
+    echo "Uploading completed in $(($duration / 60))m$(($duration % 60))s"
 }
 
 
