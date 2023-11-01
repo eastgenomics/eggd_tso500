@@ -364,7 +364,7 @@ _upload_scatter_output() {
     export -f _upload_single_file
 
     # limit upload more strictly, DNAnexus seems to get mad with really
-    # high number of concurrent uploads
+    # high number of concurrent uploads :sadpanda:
     UPLOAD_THREADS=$(bc <<< "$(nproc --all) / 2")
 
     # tar up all cromwell logs for faster upload
@@ -418,7 +418,7 @@ _upload_final_output() {
     export -f _upload_single_file
 
     # limit upload more strictly, DNAnexus seems to get mad with really
-    # high number of concurrent uploads
+    # high number of concurrent uploads :sadpanda:
     UPLOAD_THREADS=$(bc <<< "$(nproc --all) / 2")
 
     # delete the per sample Results directories since these are just copies of
