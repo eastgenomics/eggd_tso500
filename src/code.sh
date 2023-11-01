@@ -300,9 +300,13 @@ _format_output_directories() {
 
         for dir in $dirs; do
             sample_sub_dir="/home/dnanexus/out/scatter/${sample}_output/Logs_Intermediates/${dir}/${sample}/"
-            mkdir -p "$sample_sub_dir"
-            find "/home/dnanexus/out/scatter/${sample}_output/Logs_Intermediates/${dir}/" \
-                -type f | xargs -I{} mv {} "$sample_sub_dir"
+
+            if [[ ! -d "$sample_sub_dir" ]]; then
+                # sample sub dir doesn't exist => create one and move files
+                mkdir -p "$sample_sub_dir"
+                find "/home/dnanexus/out/scatter/${sample}_output/Logs_Intermediates/${dir}/" \
+                    -type f | xargs -I{} mv {} "$sample_sub_dir"
+            fi
         done
 
         app_dirs=$(find "/home/dnanexus/out/scatter/${sample}_output/Logs_Intermediates" \
