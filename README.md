@@ -47,7 +47,7 @@ This outputs the full TSO500 local app, including all analysis files and interme
 | `msi_metrics`   	    | JSON  	| `/Analysis/*/Logs_Intermediates/Msi/*`                  	| MSI metrics in JSON format                                   	|
 | `tmb_metrics`   	    | JSON  	| `/Analysis/*/Logs_Intermediates/Tmb/*`                  	| TMB metrics in JSON format                                   	|
 | `fusions`             | CSV       | `/Results/Results/*/*`                                    | CSV of all identified fusions from RNA analysis               |
-| `small_variant_annotation`    	    | JSON  	| `/Results/Results/*/*`                                  	| Nirvana annotated variant JSON file                          	|
+| `small_variant_annotation`    	    | JSON  	| `/Results/Results/*/*`                                  	|  Annotated variant JSON                          	|
 | `splice_variant_annotation`   |   JSON    | `/Results/Results/*/*`    |   Annotated splice variants from RNA analysis in JSON     |
 | `cvo`           	    | TSV   	| `/Results/Results/*/*`                                  	| CombinedVariantOutput TSV file                               	|
 | `metricsOutput` 	    | TSV   	| `/Results/Results/`                                     	| Final MetricsOutput TSV file for the run                     	|
