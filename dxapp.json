@@ -180,8 +180,8 @@
       "optional": true
     },
     {
-      "name": "annotation",
-      "label": "annotation",
+      "name": "small_variant_annotation",
+      "label": "small variant annotation",
       "class": "array:file",
       "optional": true,
       "help": "Nirvana annotated variants in JSON format"
