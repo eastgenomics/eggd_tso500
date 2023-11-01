@@ -20,7 +20,7 @@ Runs the Illumina TSO500 local analysis app.
 - `exclude_samples` (`str`) - comma separated string of samples to NOT run analyses for (mutually exclusive with `include_samples`)
 - `n_samples` (`int`) - maximum number of samples from samplesheet to run analysis on (this will take the first n sample rows from the samplesheet)
 
-## How does this app work? 
+## How does this app work?
 The app runs the TSO500 local app in the 'scatter / gather' mode (explained on [page 9 here][user-guide]), this works by splitting off the per sample analysis into separate sub jobs in parallel and then combining the output in the parent job to produce the final results. This greatly speeds up analysis vs running the local app sequentially on all samples. The general outline is as follows:
 
 - download and unpack the TSO500 resources zip file
@@ -30,7 +30,7 @@ The app runs the TSO500 local app in the 'scatter / gather' mode (explained on [
 - launch sub jobs per sample to run the initial analysis
 - hold parent job until all scatter jobs complete
 - gather up scatter job outputs and run final gather analysis step
-- upload all final output files and set app output spec 
+- upload all final output files and set app output spec
 
 
 ## What does this app output
@@ -46,12 +46,15 @@ This outputs the full TSO500 local app, including all analysis files and interme
 | `rna_bam_index` 	    | BAI   	| `/Analysis/*/Logs_Intermediates/RnaAlignment/*`         	| Index of the above BAM                                       	|
 | `msi_metrics`   	    | JSON  	| `/Analysis/*/Logs_Intermediates/Msi/*`                  	| MSI metrics in JSON format                                   	|
 | `tmb_metrics`   	    | JSON  	| `/Analysis/*/Logs_Intermediates/Tmb/*`                  	| TMB metrics in JSON format                                   	|
-| `gvcfs`         	    | VCF   	| `/Results/Results/*/*`                                  	| Genome VCF from the merging step                             	|
-| `annotation`    	    | JSON  	| `/Results/Results/*/*`                                  	| Nirvana annotated variant JSON file                          	|
+| `fusions`             | CSV       | `/Results/Results/*/*`                                    | CSV of all identified fusions from RNA analysis               |
+| `small_variant_annotation`    	    | JSON  	| `/Results/Results/*/*`                                  	| Nirvana annotated variant JSON file                          	|
+| `splice_variant_annotation`   |   JSON    | `/Results/Results/*/*`    |   Annotated splice variants from RNA analysis in JSON     |
 | `cvo`           	    | TSV   	| `/Results/Results/*/*`                                  	| CombinedVariantOutput TSV file                               	|
-| `cnv_vcfs`      	    | VCF   	| `/Results/Results/*/*`                                  	| Final CNV VCF from Results directory                         	|
-| `splice_variants_vcf` | VCF       | `/Results/Results/*/*`                                    | VCF of splice variants from RNA analysis                      |
 | `metricsOutput` 	    | TSV   	| `/Results/Results/`                                     	| Final MetricsOutput TSV file for the run                     	|
+| `cnv_vcfs`      	    | VCF   	| `/Results/Results/*/*`                                  	| Final CNV VCF from Results directory                         	|
+| `gvcfs`         	    | VCF   	| `/Results/Results/*/*`                                  	| Genome VCF from the merging step                             	|
+| `splice_variants_vcf` | VCF       | `/Results/Results/*/*`                                    | VCF of splice variants from RNA analysis                      |
+
 
 
 Other demultiplexing files (i.e logs etc) are uploaded and attributed to the `demultiplex_logs` output field, and all other analysis files are uploaded and attributed to the `analysis_folder` output field.
@@ -288,7 +291,9 @@ output_folder/
 - Samplesheet input is optional, if not specified the analysis app looks for the samplesheet in top level of runfolder
 - When running in scatter / gather mode, demultiplexing via the local app must always be first performed (i.e it can't be started from previously demultiplexed data and reusing fastqs) To achieve the equivalent, `-iupload_demultiplex_output=false` may be specified to not upload the output of demultiplexing from the job. When used in conjunction with `-iinclude_samples="sample1"`, this would effectively just run and output data for the given sample(s) as if the local app were just run from fastqs for a single sample
 - Jobs are launched per sample parsed from the 'Pair_ID' column, this means if the samplesheet is formatted for running in paired analysis mode, the fastqs for all samples for the given pair ID will be used for the analysis
-
+- samples specified to `-iinclude_samples` or `-iexclude_samples` should be specified as given in the Pair_ID column of the samplesheet
+- Intermediary genome vcfs found in `scatter/` are compressed before uploading to save on storage
+- All log files are gathered up before uploading and combined into tar files, there is one tar file per file from the scatter step and one from the gather step. This is to reduce the total number of files uploaded at the end.
 
 
 ## This app was created by East Genomics GLH
