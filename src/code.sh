@@ -656,7 +656,7 @@ _scatter() {
         echo "Starting analysis for ${sample}"
         SECONDS=0
 
-        sudo bash TSO500_ruo/TSO500_RUO_LocalApp/TruSight_Oncology_500_RUO.sh \
+        /usr/bin/time -v sudo bash TSO500_ruo/TSO500_RUO_LocalApp/TruSight_Oncology_500_RUO.sh \
             --analysisFolder /home/dnanexus/out/scatter/"${sample}"_output \
             --fastqFolder /home/dnanexus/demultiplexOutput/ \
             --resourcesFolder /home/dnanexus/TSO500_ruo/TSO500_RUO_LocalApp/resources \
