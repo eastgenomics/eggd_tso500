@@ -385,11 +385,6 @@ _upload_scatter_output() {
     mv ${sample}_scatter_logs.tar.gz /home/dnanexus/out/logs/
     mv /home/dnanexus/${sample}_scatter_stdout.txt /home/dnanexus/out/logs/
 
-    # compress intermediate genome VCFs since we don't use these routinely
-    # and they go from >300mb to < 10mb (plus its a vcf, it should be compressed)
-    find "/home/dnanexus/out/scatter/${sample}_output/Logs_Intermediates/" -type f \
-        -name "*.vcf"  -exec gzip {} \;
-
     # upload rest of files
     find /home/dnanexus/out/ -type f | xargs -P ${UPLOAD_THREADS} -n1 -I{} bash -c \
         "_upload_single_file {} analysis_folder false"
@@ -487,6 +482,10 @@ _upload_final_output() {
         xargs -P ${UPLOAD_THREADS} -n1 -I{} bash -c "_upload_single_file {} ${field} true" <<< "${files}"
         xargs -n1 -I{} mv {} /tmp <<< $files
     done
+
+    # compress intermediate genome VCFs since we don't use these routinely
+    # and they go from >300mb to < 10mb (plus its a vcf, it should be compressed)
+    find "/home/dnanexus/out/scatter/" -type f -name "*.vcf"  -exec gzip {} \;
 
     # upload final run level MetricsOutput.tsv as distinct output field
     metrics_file_id=$(dx upload -p /home/dnanexus/out/gather/Results/MetricsOutput.tsv --brief)
@@ -606,8 +605,7 @@ _scatter() {
     # control how many operations to open in parallel for download / upload
     THREADS=$(nproc --all)
 
-    mkdir -p /home/dnanexus/runfolder \
-             /home/dnanexus/TSO500_ruo \
+    mkdir -p /home/dnanexus/TSO500_ruo \
              /home/dnanexus/demultiplexOutput/ \
              /home/dnanexus/fastqs/ \
              /home/dnanexus/out/logs \
