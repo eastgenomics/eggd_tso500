@@ -468,7 +468,7 @@ _upload_final_output() {
         "*/scatter/Msi/*/*.msi.json msi_metrics"
         "*/scatter/Tmb/*/*.tmb.json tmb_metrics"
         "*/gather/Results/*/*MergedSmallVariants.genome.vcf gvcfs"
-        "*/gather/Results/*/*Annotated.json.gz annotation"
+        "*/gather/Results/*/*Annotated.json.gz small_variant_annotation"
         "*/gather/Results/*/*CombinedVariantOutput.tsv cvo"
         "*/gather/Results/*/*CopyNumberVariants.vcf cnv_vcfs"
         "*/gather/Results/*/*SpliceVariants.vcf splice_variants_vcfs"
