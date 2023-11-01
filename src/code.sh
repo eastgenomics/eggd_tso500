@@ -406,7 +406,7 @@ _upload_final_output() {
         - MSI JSON (from Msi step)
         - TMB JSON (from Tmb step)
         - MergedSmallVariants.genome.vcf (from gather/Results)
-        - annotated JSON (Nirvana annotated variants; from gather/Results)
+        - annotated JSON (Nirvana annotated small variants; from gather/Results)
         - CombinedVariantOutput (from gather/Results)
         - CopyNumberVariants.vcf (from gather/Results)
 
@@ -468,9 +468,11 @@ _upload_final_output() {
         "*/scatter/Msi/*/*.msi.json msi_metrics"
         "*/scatter/Tmb/*/*.tmb.json tmb_metrics"
         "*/gather/Results/*/*MergedSmallVariants.genome.vcf gvcfs"
-        "*/gather/Results/*/*Annotated.json.gz small_variant_annotation"
+        "*/gather/Results/*/*MergedVariants_Annotated.json.gz small_variant_annotation"
+        "*/gather/Results/*/*Annotated.json.gz splice_variant_annotation"
         "*/gather/Results/*/*CombinedVariantOutput.tsv cvo"
         "*/gather/Results/*/*CopyNumberVariants.vcf cnv_vcfs"
+        "*/gather/Results/*/*AllFusions.csv fusions"
         "*/gather/Results/*/*SpliceVariants.vcf splice_variants_vcfs"
     )
 

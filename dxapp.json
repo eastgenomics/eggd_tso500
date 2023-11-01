@@ -187,6 +187,20 @@
       "help": "Nirvana annotated variants in JSON format"
     },
     {
+      "name": "splice_variant_annotation",
+      "label": "splice variant annotation",
+      "class": "array:file",
+      "optional": true,
+      "help": "annotated splice variants in JSON format"
+    },
+    {
+      "name": "fusions",
+      "label": "fusions",
+      "class": "array:file",
+      "optional": true,
+      "help": "csv of identified fusions from RNA samples"
+    },
+    {
       "name": "cvo",
       "label": "combined variant outputs",
       "class": "array:file",
