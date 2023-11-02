@@ -7,7 +7,7 @@ Runs the Illumina TSO500 local analysis app.
 
 ### Required
 - `TSO500_ruo` (`file`) - a zip file (originally provided by Illumina) containing the TSO500 local analysis app.
-- `input_files` (`array:files`) - raw sequencing data in tar files
+- `run_tar_data` (`array:files`) - raw sequencing data in tar files
 
 ### Optional
 - `samplesheet` (`file`) - samplesheet to use for demultiplexing and analysis, will use the one in the run data if not provided
