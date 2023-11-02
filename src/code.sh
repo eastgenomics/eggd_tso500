@@ -365,7 +365,7 @@ _upload_scatter_output() {
     '''
     SECONDS=0
     echo "Uploading sample output"
-    export -f _upload_single_file
+    export -f _upload_single_file  # required to be accessible to xargs sub shell
 
     # limit upload more strictly, DNAnexus seems to get mad with really
     # high number of concurrent uploads :sadpanda:
@@ -419,7 +419,7 @@ _upload_final_output() {
 
     '''
     SECONDS=0
-    export -f _upload_single_file
+    export -f _upload_single_file  # required to be accessible to xargs sub shell
 
     # limit upload more strictly, DNAnexus seems to get mad with really
     # high number of concurrent uploads :sadpanda:
@@ -511,13 +511,13 @@ _upload_final_output() {
 
 _upload_demultiplex_output() {
     : '''
-    Upload output of demultiplexing into project, this will be called
+    Upload output of demultiplexing into job container, this will be called
     before launching per sample scatter jobs since the fastqs need to
     be provided as input to the scatter sub job
     '''
     echo "Uploading demultiplexing output"
     SECONDS=0
-    export -f _upload_single_file
+    export -f _upload_single_file  # required to be accessible to xargs sub shell
 
     # first upload fastqs to set to distinct fastqs output field,
     # then upload the rest
