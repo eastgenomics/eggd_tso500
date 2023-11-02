@@ -59,7 +59,7 @@ This outputs the full TSO500 local app, including all analysis files and interme
 
 Other demultiplexing files (i.e logs etc) are uploaded and attributed to the `demultiplex_logs` output field, and all other analysis files are uploaded and attributed to the `analysis_folder` output field.
 
-The general output directory structure is (n.b. per sample directories / files have been limited to one for brevity):
+The general output directory structure is (n.b. per sample directories / files have been limited to one sample for brevity):
 ```
 output_folder/
 ├── scatter
