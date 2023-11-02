@@ -585,8 +585,8 @@ _scatter() {
 
     This function will be launched as a sub job within the scope of
     the main TSO500 job, it sets up the job environment, runs the
-    local app and uploads output to the project to then continue
-    on to the gather step for the final results output
+    local app and uploads output to the parent job container to
+    then continue on to the gather step for the final results output
 
     Inputs
     ---------
