@@ -1,14 +1,9 @@
 {
   "name": "eggd_tso500",
   "title": "eggd_tso500",
-  "summary": "Somatic variant calling for DNA & RNA samples",
-  "tags": [
-  ],
-  "properties": {
-    "github release": "1.2.1"
-  },
+  "summary": "Somatic variant calling for DNA & RNA samples using TSO500 local app",
   "dxapi": "1.0.0",
-  "version":"1.2.1",
+  "version":"2.0.0",
   "openSource": true,
   "inputSpec": [
     {
@@ -20,76 +15,225 @@
       "suggestions": [
         {
           "name": "TSO500 Local App v2.2 Asset Bundle",
-          "value":
-          {"$dnanexus_link": {"project": "project-Fkb6Gkj433GVVvj73J7x8KbV","id": "file-Fz4X61Q44Bv44FyfJX1jJPj6"}}
+          "value": {
+            "$dnanexus_link": {
+              "project": "project-Fkb6Gkj433GVVvj73J7x8KbV",
+              "id": "file-Fz4X61Q44Bv44FyfJX1jJPj6"
+            }
+          }
         },
         {
           "project": "project-Fkb6Gkj433GVVvj73J7x8KbV",
           "path": "/assets/tso500_localApp/v2.2/"
         }
       ],
-      "optional": false
+      "optional": false,
+      "group": "files"
     },
     {
-      "name": "input_files",
-      "label": "input files",
-      "help": "Zipped runfolder or array of fastqs",
+      "name": "run_tar_data",
+      "label": "run tar data",
+      "help": "tar files of runfolder containing raw sequencing data",
       "class": "array:file",
-      "patterns": ["*.tar.gz","*.fastq.gz"],
-      "optional": false
-    },
-    {
-      "name": "isNovaSeq",
-      "label": "isNovaSeq",
-      "help": "(Optional) flag to specify NovaSeq data. (default = true)",
-      "class": "boolean",
-      "optional": true,
-      "default": true
-    },
-    {
-      "name": "isFastQ",
-      "label": "isFastQ",
-      "help": "(Optional) flag to run from fastq input",
-      "class": "boolean",
-      "optional": true,
-      "default": false
-    },
-    {
-      "name": "demultiplexOnly",
-      "label": "demultiplex Only",
-      "help": "(Optional) flag to demultiplex a runfolder and upload the fastq files",
-      "class": "boolean",
-      "optional": true,
-      "default": false
+      "patterns": ["*.tar.gz"],
+      "optional": false,
+      "group": "files"
     },
     {
       "name": "samplesheet",
       "label": "samplesheet",
-      "help": "The SampleSheet used for demultiplexing",
+      "help": "Samplesheet to use for demultiplexing and analysis",
       "class": "file",
       "optional": true,
-      "patterns": ["*.csv"]
+      "patterns": ["*.csv"],
+      "group": "files"
     },
     {
       "name": "analysis_options",
       "label": "analysis_options",
       "help": "An optional string passed to analysis script",
       "class": "string",
-      "optional": true
+      "optional": true,
+      "group": "options"
+    },
+    {
+      "name": "scatter_instance",
+      "label": "scatter instance",
+      "help": "instance type to use for scatter sub jobs (default: mem1_ssd1_v2_x36)",
+      "class": "string",
+      "default": "mem1_ssd1_v2_x36",
+      "group": "options"
+    },
+    {
+      "name": "isNovaSeq",
+      "label": "isNovaSeq",
+      "help": "(Optional) flag to specify NovaSeq data (default: true)",
+      "class": "boolean",
+      "default": true,
+      "group": "options"
+    },
+    {
+      "name": "upload_demultiplex_output",
+      "label": "upload demultiplex output",
+      "help": "(Optional) controls whether demultiplexed files are retained (true) or discarded (false)",
+      "class": "boolean",
+      "default": true,
+      "group": "options"
+    },
+    {
+      "name": "demultiplex_only",
+      "label": "demultiplex only",
+      "help": "(Optional) flag to demultiplex a runfolder and upload the fastq files",
+      "class": "boolean",
+      "default": false,
+      "group": "options"
+    },
+    {
+      "name": "include_samples",
+      "label": "include samples",
+      "help": "comma separated string of samples to run analysis on (i.e. subset of samplesheet)",
+      "class": "string",
+      "optional": true,
+      "group": "options"
+    },
+    {
+      "name": "exclude_samples",
+      "label": "exclude samples",
+      "help": "comma separated string of samples to NOT run analysis on",
+      "class": "string",
+      "optional": true,
+      "group": "options"
+    },
+    {
+      "name": "n_samples",
+      "label": "no. samples",
+      "help": "maximum number of samples from samplesheet to run analysis on (this will take the first n sample rows from the samplesheet)",
+      "class": "int",
+      "optional": true,
+      "group": "testing"
     }
   ],
   "outputSpec": [
     {
+      "name": "fastqs",
+      "label": "fastqs",
+      "class": "array:file",
+      "help": "fastqs from demultiplexing",
+      "optional": true
+    },
+    {
+      "name": "dna_bams",
+      "label": "DNA bams",
+      "class": "array:file",
+      "help": "stitched realigned bam files",
+      "optional": true
+    },
+    {
+      "name": "dna_bam_index",
+      "label": "DNA bam index",
+      "class": "array:file",
+      "help": "stitched realigned bam file index",
+      "optional": true
+    },
+    {
+      "name": "rna_bams",
+      "label": "RNA bams",
+      "class": "array:file",
+      "help": "RNA aligned bam files",
+      "optional": true
+    },
+    {
+      "name": "rna_bam_index",
+      "label": "RNA bam index",
+      "class": "array:file",
+      "help": "RNA aligned bam file index",
+      "optional": true
+    },
+    {
+      "name": "gvcfs",
+      "label": "genome VCFs",
+      "class": "array:file",
+      "optional": true
+    },
+    {
+      "name": "cnv_vcfs",
+      "label": "CNV VCFs",
+      "class": "array:file",
+      "optional": true
+    },
+    {
+      "name": "splice_variants_vcfs",
+      "label": "splice variants VCFs",
+      "class": "array:file",
+      "optional": true
+    },
+    {
+      "name": "msi_metrics",
+      "label": "MSI metrics",
+      "class": "array:file",
+      "optional": true
+    },
+    {
+      "name": "tmb_metrics",
+      "label": "TMB metrics",
+      "class": "array:file",
+      "optional": true
+    },
+    {
+      "name": "small_variant_annotation",
+      "label": "small variant annotation",
+      "class": "array:file",
+      "optional": true,
+      "help": "Nirvana annotated variants in JSON format"
+    },
+    {
+      "name": "splice_variant_annotation",
+      "label": "splice variant annotation",
+      "class": "array:file",
+      "optional": true,
+      "help": "annotated splice variants in JSON format"
+    },
+    {
+      "name": "fusions",
+      "label": "fusions",
+      "class": "array:file",
+      "optional": true,
+      "help": "csv of identified fusions from RNA samples"
+    },
+    {
+      "name": "cvo",
+      "label": "combined variant outputs",
+      "class": "array:file",
+      "help": "combined variant output tsv files",
+      "optional": true
+    },
+    {
+      "name": "metricsOutput",
+      "label": "MetricsOutput",
+      "class": "file",
+      "help": "Run level MetricsOuput.tsv file",
+      "optional": true
+    },
+    {
       "name": "analysis_folder",
       "label": "analysis_folder",
-      "help": "All files within the analysis folder.",
-      "class": "array:file"
+      "help": "All other files within the analysis folder.",
+      "class": "array:file",
+      "optional": true
+    },
+    {
+      "name": "demultiplex_logs",
+      "label": "demultiplex logs",
+      "class": "array:file",
+      "optional":true,
+      "help": "all intermediate and log files from demultiplexing"
     },
     {
       "name": "logs",
       "label": "logs",
       "help": "stdout logs created during analysis",
-      "class": "array:file"
+      "class": "array:file",
+      "optional": true
     }
   ],
   "runSpec": {
@@ -100,16 +244,16 @@
     "version":"0",
     "file": "src/code.sh",
     "interpreter": "bash",
+    "headJobOnDemand": true,
     "timeoutPolicy": {
       "*": {
-        "hours": 48
+        "hours": 12
       }
     },
     "assetDepends": [
     ]
   },
   "developers":[
-    "user-toutoua",
     "org-emee_1"
   ],
   "authorizedUsers": [
@@ -122,7 +266,7 @@
     "aws:eu-central-1": {
       "systemRequirements": {
         "main": {
-          "instanceType": "mem1_ssd1_x32"
+          "instanceType": "mem1_ssd1_v2_x36"
         }
       }
     }
