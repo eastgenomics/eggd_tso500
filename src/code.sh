@@ -181,22 +181,8 @@ _modify_samplesheet() {
         dx-jobutil-report-error "Invalid options specified"
     fi
 
-    if [[ "$include_samples" ]] || [[ "$exclude_samples" ]]; then
-        # first ensure any samples specified to include or exclude are
-        # valid sample names from our samplesheet
-        samples=$(sed -e 's/^,\|,$//' <<< "${include_samples},${exclude_samples}")
-
-        invalid=$(while read -d',' -r line; do \
-            [[ "$sample_list" =~ $line ]] || echo "${line} "; done <<< "${samples},")
-
-        if [[ "${invalid}" ]]; then
-            echo "One or more samplenames provided to include/exclude are invalid: ${invalid}"
-            dx-jobutil-report-error "Invalid samplename specified"
-        fi
-    fi
-
     if [[ "$include_samples" ]]; then
-        # retaining rows containing only those specified for given samples
+        # retaining rows containing only those specified for given samples / patterns
         echo "-iinclude_samples specified: ${include_samples}"
         include=$(sed 's/,/|/g' <<< "$include_samples")
         sample_rows=$(awk '/'"$include"'/ {print $1}' <<< "$sample_rows")
@@ -204,11 +190,18 @@ _modify_samplesheet() {
     fi
 
     if [[ "$exclude_samples" ]]; then
-        # exclude rows containing only those specified for given samples
+        # exclude rows containing only those specified for given samples / patterns
         echo -e "-iexclude_samples specified: ${exclude_samples}"
         exclude=$(sed 's/,/|/g' <<< "$exclude_samples")
         sample_rows=$(awk '!/'"$exclude"'/ {print $1}' <<< "$sample_rows")
         sample_list=$(sed -e  "s/\r//g" <<< "$sample_rows" | cut -d, -f $pair_id_col | sort | uniq)
+    fi
+
+    if [[ -z "$sample_rows" ]]; then
+        # final sense check that we didn't end up with no rows to write
+        echo "No sample rows left after include / exclude specified, check sample names / patterns "
+        echo "provided are valid against sample names listed in the samplesheet"
+        dx-jobutil-report-error "Error limiting samplesheet to specified sample names"
     fi
 
     # write out new samplesheet with specified rows
