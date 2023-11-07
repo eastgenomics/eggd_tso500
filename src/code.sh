@@ -197,6 +197,13 @@ _modify_samplesheet() {
         sample_list=$(sed -e  "s/\r//g" <<< "$sample_rows" | cut -d, -f $pair_id_col | sort | uniq)
     fi
 
+    if [[ -z "$sample_rows" ]]; then
+        # final sense check that we didn't end up with no rows to write
+        echo "No sample rows left after include / exclude specified, check sample names / patterns "
+        echo "provided are valid against sample names listed in the samplesheet"
+        dx-jobutil-report-error "Error limiting samplesheet to specified sample names"
+    fi
+
     # write out new samplesheet with specified rows
     echo "$samplesheet_header" >> runfolder/modified_SampleSheet.csv
     echo "$sample_rows" >> runfolder/modified_SampleSheet.csv
