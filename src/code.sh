@@ -512,10 +512,14 @@ _upload_demultiplex_output() {
     SECONDS=0
     export -f _upload_single_file  # required to be accessible to xargs sub shell
 
+    # limit upload more strictly, DNAnexus seems to get mad with really
+    # high number of concurrent uploads :sadpanda:
+    UPLOAD_THREADS=$(bc <<< "$(nproc --all) / 2")
+
     # first upload fastqs to set to distinct fastqs output field,
     # then upload the rest
     fastqs=$(find "/home/dnanexus/out/demultiplexOutput" -type f -name "*fastq.gz")
-    xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} fastqs true" <<< "$fastqs"
+    xargs -P ${UPLOAD_THREADS} -n1 -I{} bash -c "_upload_single_file {} fastqs true" <<< "$fastqs"
     xargs -n1 -I{} mv {} /tmp <<< $fastqs
 
     # tar up all cromwell logs for faster upload
@@ -524,7 +528,7 @@ _upload_demultiplex_output() {
     rm -rf /home/dnanexus/out/demultiplexOutput/cromwell-executions
 
     # upload rest of files
-    find "/home/dnanexus/out/demultiplexOutput/" -type f | xargs -P ${THREADS} -n1 -I{} bash -c \
+    find "/home/dnanexus/out/demultiplexOutput/" -type f | xargs -P ${UPLOAD_THREADS} -n1 -I{} bash -c \
         "_upload_single_file {} demultiplex_logs true"
 
     duration=$SECONDS
