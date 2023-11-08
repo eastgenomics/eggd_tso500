@@ -115,7 +115,7 @@ _get_samplesheet() {
         mv "$local_samplesheet" /home/dnanexus/runfolder/SampleSheet.csv
 
         # upload to get a dx file ID to pass to downstream scatter jobs
-        samplesheet=$(dx upload --brief "$local_samplesheet")
+        samplesheet=$(dx upload --brief runfolder/SampleSheet.csv)
     else
         dx-jobutil-report-error "No SampleSheet could be found."
         exit 1
