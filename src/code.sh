@@ -55,7 +55,6 @@ _get_run_data() {
 
     duration=$SECONDS
     echo "Downloaded $(wc -w <<< ${file_ids}) files (${total}) in $(($duration / 60))m$(($duration % 60))s"
-    exit 0
 }
 
 
