@@ -105,7 +105,7 @@ _get_samplesheet() {
     if [[ "$samplesheet" ]]; then
         # using provided samplesheet
         echo "Using provided sample sheet: ${samplesheet_name}"
-        dx download "$samplesheet" --overwrite-o runfolder/SampleSheet.csv
+        dx download "$samplesheet" --overwrite -o runfolder/SampleSheet.csv
     elif [[ $(find ./ -regextype posix-extended  -iregex '.*sample[-_ ]?sheet.csv$') ]]; then
         # Sample sheet not given, try finding it in the run folder
         # Use regex to account for anything named differently
