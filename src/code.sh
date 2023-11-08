@@ -41,16 +41,21 @@ _get_run_data() {
     SECONDS=0
     echo "Downloading tar files"
 
+    # limit download of tar data more strictly, DNAnexus seems to get mad
+    # with really high number of concurrent large file downloads :sadpanda:
+    TAR_THREADS=$(bc <<< "$(nproc --all) / 4")
+
     # drop the $dnanexus_link from the file IDs
     file_ids=$(grep -Po  "file-[\d\w]+" <<< "${run_tar_data[@]}")
 
-    echo "$file_ids" | xargs -P ${THREADS} -n1 -I{} sh -c \
+    echo "$file_ids" | xargs -P ${TAR_THREADS} -n1 -I{} sh -c \
         "dx cat {} | tar -I pigz -xf - --no-same-owner --absolute-names -C /home/dnanexus/runfolder"
 
     total=$(du -sh /home/dnanexus/runfolder | cut -f1)
 
     duration=$SECONDS
     echo "Downloaded $(wc -w <<< ${file_ids}) files (${total}) in $(($duration / 60))m$(($duration % 60))s"
+    exit 0
 }
 
 
@@ -512,10 +517,14 @@ _upload_demultiplex_output() {
     SECONDS=0
     export -f _upload_single_file  # required to be accessible to xargs sub shell
 
+    # limit upload more strictly, DNAnexus seems to get mad with really
+    # high number of concurrent uploads :sadpanda:
+    UPLOAD_THREADS=$(bc <<< "$(nproc --all) / 4")
+
     # first upload fastqs to set to distinct fastqs output field,
     # then upload the rest
     fastqs=$(find "/home/dnanexus/out/demultiplexOutput" -type f -name "*fastq.gz")
-    xargs -P ${THREADS} -n1 -I{} bash -c "_upload_single_file {} fastqs true" <<< "$fastqs"
+    xargs -P ${UPLOAD_THREADS} -n1 -I{} bash -c "_upload_single_file {} fastqs true" <<< "$fastqs"
     xargs -n1 -I{} mv {} /tmp <<< $fastqs
 
     # tar up all cromwell logs for faster upload
@@ -524,7 +533,7 @@ _upload_demultiplex_output() {
     rm -rf /home/dnanexus/out/demultiplexOutput/cromwell-executions
 
     # upload rest of files
-    find "/home/dnanexus/out/demultiplexOutput/" -type f | xargs -P ${THREADS} -n1 -I{} bash -c \
+    find "/home/dnanexus/out/demultiplexOutput/" -type f | xargs -P ${UPLOAD_THREADS} -n1 -I{} bash -c \
         "_upload_single_file {} demultiplex_logs true"
 
     duration=$SECONDS

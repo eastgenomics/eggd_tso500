@@ -266,7 +266,7 @@
     "aws:eu-central-1": {
       "systemRequirements": {
         "main": {
-          "instanceType": "mem1_ssd2_v2_x36"
+          "instanceType": "mem1_ssd1_v2_x36"
         }
       }
     }
