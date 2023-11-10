@@ -39,21 +39,21 @@ This outputs the full TSO500 local app, including all analysis files and interme
 
 | Field           	    | Type  	| Path                                                    	| Notes                                                        	|
 |---------------------  |-------	|---------------------------------------------------------	|--------------------------------------------------------------	|
-| `fastqs`        	    | FASTQ 	| `/DemultiplexOutput/Logs_Intermediates/FastqGeneration` 	| The FASTQs as output from bclconvert                         	|
-| `dna_bams`      	    | BAM   	| `/Analysis/*/Logs_Intermediates/StitchedRealigned/`     	| The 'final' BAM files upon which variant calling is performed 	|
-| `dna_bam_index` 	    | BAI   	| `/Analysis/*/Logs_Intermediates/StitchedRealigned/`     	| Index of the above BAMs                                      	|
-| `rna_bam`       	    | BAM   	| `/Analysis/*/Logs_Intermediates/RnaAlignment/*`         	| Downsampled and trimmed BAMs aligned by STAR aligner          	|
-| `rna_bam_index` 	    | BAI   	| `/Analysis/*/Logs_Intermediates/RnaAlignment/*`         	| Index of the above BAMs                                       	|
-| `msi_metrics`   	    | JSON  	| `/Analysis/*/Logs_Intermediates/Msi/*`                  	| MSI metrics in JSON format                                   	|
-| `tmb_metrics`   	    | JSON  	| `/Analysis/*/Logs_Intermediates/Tmb/*`                  	| TMB metrics in JSON format                                   	|
-| `fusions`             | CSV       | `/Results/Results/*/*`                                    | CSVs of all identified fusions from RNA analysis               |
-| `small_variant_annotation`    	    | JSON  	| `/Results/Results/*/*`                                  	|  Annotated variants in JSON                          	|
-| `splice_variant_annotation`   |   JSON    | `/Results/Results/*/*`    |   Annotated splice variants from RNA analysis in JSON     |
-| `cvo`           	    | TSV   	| `/Results/Results/*/*`                                  	| CombinedVariantOutput TSV files                               	|
-| `metricsOutput` 	    | TSV   	| `/Results/Results/`                                     	| Final MetricsOutput TSV file for the run                     	|
-| `cnv_vcfs`      	    | VCF   	| `/Results/Results/*/*`                                  	| Final CNV VCFs from Results directory                         	|
-| `gvcfs`         	    | VCF   	| `/Results/Results/*/*`                                  	| Genome VCFs from the merging step                             	|
-| `splice_variants_vcf` | VCF       | `/Results/Results/*/*`                                    | VCFs of splice variants from RNA analysis                      |
+| `fastqs`        	    | FASTQ 	| `/demultiplexOutput/Logs_Intermediates/FastqGeneration/` 	| The FASTQs as output from bclconvert                         	|
+| `dna_bams`      	    | BAM   	| `/scatter/StitchedRealigned/*/`     	| The 'final' BAM files upon which variant calling is performed 	|
+| `dna_bam_index` 	    | BAI   	| `/scatter/StitchedRealigned/*/`     	| Index of the above BAMs                                      	|
+| `rna_bam`       	    | BAM   	| `/scatter/RnaAlignment/*/`         	| Downsampled and trimmed BAMs aligned by STAR aligner          	|
+| `rna_bam_index` 	    | BAI   	| `/scatter/RnaAlignment/*/`         	| Index of the above BAMs                                       	|
+| `msi_metrics`   	    | JSON  	| `/scatter/Msi/*/`                  	| MSI metrics in JSON format                                   	|
+| `tmb_metrics`   	    | JSON  	| `/scatter/Tmb/*/`                  	| TMB metrics in JSON format                                   	|
+| `fusions`             | CSV       | `/gather/Results/*/`                                    | CSVs of all identified fusions from RNA analysis               |
+| `small_variant_annotation`    	    | JSON  	| `/gather/Results/*/`                                  	|  Annotated variants in JSON                          	|
+| `splice_variant_annotation`   |   JSON    | `/gather/Results/*/`    |   Annotated splice variants from RNA analysis in JSON     |
+| `cvo`           	    | TSV   	| `/gather/Results/*/`                                  	| CombinedVariantOutput TSV files                               	|
+| `metricsOutput` 	    | TSV   	| `/`                                     	| Final MetricsOutput TSV file for the run                     	|
+| `cnv_vcfs`      	    | VCF   	| `/gather/Results/*/`                                  	| Final CNV VCFs from Results directory                         	|
+| `gvcfs`         	    | VCF   	| `/gather/Results/*/`                                  	| Genome VCFs from the merging step                             	|
+| `splice_variants_vcf` | VCF       | `/gather/Results/*/`                                    | VCFs of splice variants from RNA analysis                      |
 
 
 
