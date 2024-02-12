@@ -488,7 +488,8 @@ _upload_final_output() {
 
     # compress intermediate genome VCFs since we don't use these routinely
     # and they go from >300mb to < 10mb (plus its a vcf, it should be compressed)
-    find "/home/dnanexus/out/scatter/" -type f -name "*.vcf"  -exec gzip {} \;
+    find "/home/dnanexus/out/scatter/" -type f -name "*.vcf"  -print0 \
+        | xargs -I{} -n1 -P "$THREADS" gzip {}
 
     # upload final run level MetricsOutput.tsv as distinct output field
     metrics_file_id=$(dx upload -p /home/dnanexus/out/gather/Results/MetricsOutput.tsv --brief)
