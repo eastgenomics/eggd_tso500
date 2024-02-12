@@ -348,8 +348,7 @@ _upload_single_file() {
   file_id=$(dx upload "$file" --path "$remote_path" --parents --brief)
 
   if [[ "$link" == true ]]; then
-    # flock here ensures we don't try write to the dxoutput.json when uploading in parallel
-    flock -x -w30 /tmp/add_output.lock dx-jobutil-add-output "$field" "$file_id" --array
+    dx-jobutil-add-output "$field" "$file_id" --array
   fi
 }
 
@@ -487,11 +486,11 @@ _upload_final_output() {
         xargs -n1 -I{} mv {} /tmp <<< $files
     done
 
-    # compress intermediate genome VCFs since we don't use these routinely
-    # and they go from >300mb to < 10mb (plus its a vcf, it should be compressed)
+    # compress intermediate VCFs since we don't use these routinely and
+    # they go from >300mb to < 10mb (plus its a vcf, it should be compressed)
     time find /home/dnanexus/out/scatter/ /home/dnanexus/out/gather/Logs_Intermediates/ \
         -type f -name "*.vcf"  -print0 \
-        | xargs -I{} -n1 -P "$THREADS" gzip {}
+        | xargs --null -I{} -n1 -P "$THREADS" gzip {}
 
     # upload final run level MetricsOutput.tsv as distinct output field
     metrics_file_id=$(dx upload -p /home/dnanexus/out/gather/Results/MetricsOutput.tsv --brief)
