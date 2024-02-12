@@ -347,8 +347,9 @@ _upload_single_file() {
 
   file_id=$(dx upload "$file" --path "$remote_path" --parents --brief)
 
-  if [[ "$link" == true ]]; then 
-    dx-jobutil-add-output "$field" "$file_id" --array
+  if [[ "$link" == true ]]; then
+    # flock here ensures we don't try write to the dxoutput.json when uploading in parallel
+    flock -x -w30 /tmp/add_output.lock dx-jobutil-add-output "$field" "$file_id" --array
   fi
 }
 
@@ -545,9 +546,9 @@ _upload_demultiplex_output() {
     fastq_ids=$(cat job_output.json | jq -r '.fastqs[][]')
 
     if [[ "$upload_demultiplex_output" == false ]]; then
-        # option specified to not upload demultiplex output => remove the job_output file
+        # option specified to not upload demultiplex output => empty the job_output file
         # so that these are removed from the jobs output spec
-        rm job_output.json
+        echo "{}" > job_output.json
     fi
 }
 
@@ -613,6 +614,9 @@ _scatter() {
 
     # control how many operations to open in parallel for download / upload
     THREADS=$(nproc --all)
+
+    # create valid empty JSON file for job output, fixes #19
+    echo "{}" > job_output.json
 
     mkdir -p /home/dnanexus/TSO500_ruo \
              /home/dnanexus/demultiplexOutput/ \
@@ -755,6 +759,9 @@ main() {
     '''
     # control how many operations to open in parallel for download / upload
     THREADS=$(nproc --all)
+
+    # create valid empty JSON file for job output, fixes #19
+    echo "{}" > job_output.json
 
     mkdir -p /home/dnanexus/runfolder \
              /home/dnanexus/TSO500_ruo \
