@@ -1,4 +1,4 @@
-# TSO500 v2.0.0
+# eggd_TSO500 v2.1.0
 
 ## What does this app do?
 Runs the Illumina TSO500 local analysis app.
