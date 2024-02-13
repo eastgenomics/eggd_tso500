@@ -289,10 +289,10 @@ output_folder/
 
 ## Notes
 - Samplesheet input is optional, if not specified the analysis app looks for the samplesheet in top level of runfolder
-- When running in scatter / gather mode, demultiplexing via the local app must always be first performed (i.e it can't be started from previously demultiplexed data and reusing fastqs) To achieve the equivalent, `-iupload_demultiplex_output=false` may be specified to not upload the output of demultiplexing from the job. When used in conjunction with `-iinclude_samples="sample1"`, this would effectively just run and output data for the given sample(s) as if the local app were just run from fastqs for a single sample
+- When running in scatter / gather mode, demultiplexing via the local app must always be first performed (i.e it can't be started from previously demultiplexed data and reusing fastqs). To achieve the equivalent, `-iupload_demultiplex_output=false` may be specified to not upload the output of demultiplexing from the job. When used in conjunction with `-iinclude_samples="sample1"`, this would effectively just run and output data for the given sample(s) as if the local app were just run from fastqs for a single sample
 - Jobs are launched per sample parsed from the 'Pair_ID' column, this means if the samplesheet is formatted for running in paired analysis mode, the fastqs for all samples for the given pair ID will be used for the analysis
 - sample names specified to `-iinclude_samples` or `-iexclude_samples` should be specified as given in the Pair_ID column of the samplesheet, or as regex pattern(s) which will be matched against the Pair_ID column
-- Intermediary genome vcfs found in `scatter/` are compressed before uploading to save on storage
+- Intermediary genome vcfs found in `scatter/` and `gather/Logs_Intermediates/` are compressed before uploading to save on storage
 - All log files are gathered up before uploading and combined into tar files, there is one tar file per file from the scatter step and one from the gather step. This is to reduce the total number of files uploaded at the end.
 
 
