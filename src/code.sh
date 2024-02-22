@@ -347,7 +347,7 @@ _upload_single_file() {
 
   file_id=$(dx upload "$file" --path "$remote_path" --parents --brief)
 
-  if [[ "$link" == true ]]; then 
+  if [[ "$link" == true ]]; then
     dx-jobutil-add-output "$field" "$file_id" --array
   fi
 }
@@ -486,9 +486,11 @@ _upload_final_output() {
         xargs -n1 -I{} mv {} /tmp <<< $files
     done
 
-    # compress intermediate genome VCFs since we don't use these routinely
-    # and they go from >300mb to < 10mb (plus its a vcf, it should be compressed)
-    find "/home/dnanexus/out/scatter/" -type f -name "*.vcf"  -exec gzip {} \;
+    # compress intermediate VCFs since we don't use these routinely and
+    # they go from >300mb to < 10mb (plus its a vcf, it should be compressed)
+    time find /home/dnanexus/out/scatter/ /home/dnanexus/out/gather/Logs_Intermediates/ \
+        -type f -name "*.vcf"  -print0 \
+        | xargs --null -I{} -n1 -P "$THREADS" gzip {}
 
     # upload final run level MetricsOutput.tsv as distinct output field
     metrics_file_id=$(dx upload -p /home/dnanexus/out/gather/Results/MetricsOutput.tsv --brief)
@@ -543,9 +545,9 @@ _upload_demultiplex_output() {
     fastq_ids=$(cat job_output.json | jq -r '.fastqs[][]')
 
     if [[ "$upload_demultiplex_output" == false ]]; then
-        # option specified to not upload demultiplex output => remove the job_output file
+        # option specified to not upload demultiplex output => empty the job_output file
         # so that these are removed from the jobs output spec
-        rm job_output.json
+        echo "{}" > job_output.json
     fi
 }
 
@@ -611,6 +613,9 @@ _scatter() {
 
     # control how many operations to open in parallel for download / upload
     THREADS=$(nproc --all)
+
+    # create valid empty JSON file for job output, fixes #19
+    echo "{}" > job_output.json
 
     mkdir -p /home/dnanexus/TSO500_ruo \
              /home/dnanexus/demultiplexOutput/ \
@@ -753,6 +758,9 @@ main() {
     '''
     # control how many operations to open in parallel for download / upload
     THREADS=$(nproc --all)
+
+    # create valid empty JSON file for job output, fixes #19
+    echo "{}" > job_output.json
 
     mkdir -p /home/dnanexus/runfolder \
              /home/dnanexus/TSO500_ruo \
