@@ -498,7 +498,7 @@ _upload_final_output() {
     mv /home/dnanexus/out/gather/Results/MetricsOutput.tsv /tmp
 
     # if user selects to not use the intermediate BAMs and fastqs,
-    # delete these files from the scatter directoru
+    # delete these files from the scatter directory
     if [[ "$upload_intermediate_files" == false ]] ; then
         # rm bams
         rm -r /home/dnanexus/out/scatter/DnaAlignment
