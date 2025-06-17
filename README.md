@@ -19,6 +19,7 @@ Runs the Illumina TSO500 local analysis app.
 - `include_samples` (`str`) - comma separated string of sample names / regex patterns to run analyses for (mutually exclusive with `exclude_samples`)
 - `exclude_samples` (`str`) - comma separated string of sample names / regex patterns to NOT run analyses for (mutually exclusive with `include_samples`)
 - `n_samples` (`int`) - maximum number of samples from samplesheet to run analysis on (this will take the first n sample rows from the samplesheet)
+- `upload_intermediate_files` (`bool`; default: false)) - controls whether intermediate files (BAMs and fastqs) are uploaded
 
 ## How does this app work?
 The app runs the TSO500 local app in the 'scatter / gather' mode (explained on [page 9 here][user-guide]), this works by splitting off the per sample analysis into separate sub jobs in parallel and then combining the output in the parent job to produce the final results. This greatly speeds up analysis vs running the local app sequentially on all samples. The general outline is as follows:
