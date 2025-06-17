@@ -497,6 +497,19 @@ _upload_final_output() {
     dx-jobutil-add-output "metricsOutput" "$metrics_file_id" --class=file
     mv /home/dnanexus/out/gather/Results/MetricsOutput.tsv /tmp
 
+    # if user selects to not use the intermediate BAMs and fastqs,
+    # delete these files from the scatter directoru
+    if [[ ! "$upload_intermediate_files" ]] ; then
+        # rm bams
+        rm -r /home/dnanexus/out/scatter/DnaAlignment
+        rm -r /home/dnanexus/out/scatter/DnaRealignment
+        # rm fastqs
+        rm -r /home/dnanexus/out/scatter/CollapsedReads
+        rm -r /home/dnanexus/out/scatter/FastqDownsample
+        rm -r /home/dnanexus/out/scatter/TrimFastq
+    fi
+
+
     # upload rest of files
     find /home/dnanexus/out/scatter \
          /home/dnanexus/out/logs \
