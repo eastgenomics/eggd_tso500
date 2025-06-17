@@ -3,7 +3,7 @@
   "title": "eggd_tso500",
   "summary": "Somatic variant calling for DNA & RNA samples using TSO500 local app",
   "dxapi": "1.0.0",
-  "version":"2.0.1",
+  "version":"2.1.0",
   "openSource": true,
   "inputSpec": [
     {
@@ -111,6 +111,14 @@
       "class": "int",
       "optional": true,
       "group": "testing"
+    },
+    {
+      "name": "upload_intermediate_files",
+      "label": "upload intermediate files",
+      "help": "(Optional) controls whether intermediate files (BAMs and fastqs) are uploaded",
+      "class": "boolean",
+      "default": false,
+      "group": "options"
     }
   ],
   "outputSpec": [
